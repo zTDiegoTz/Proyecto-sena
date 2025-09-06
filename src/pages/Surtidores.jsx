@@ -60,7 +60,7 @@ function Surtidores() {
     }
 
     if (!ventaData.cantidad || parseFloat(ventaData.cantidad) <= 0) {
-      alert('Por favor ingrese una cantidad válida')
+      alert('Error en el cálculo de galones. Verifique el valor ingresado.')
       return
     }
 
@@ -128,22 +128,6 @@ function Surtidores() {
     }
   }
 
-  const handleCantidadChange = (cantidad) => {
-    if (cantidad && !isNaN(parseFloat(cantidad)) && ventaData.precioUnitario > 0) {
-      const valor = (parseFloat(cantidad) * ventaData.precioUnitario).toFixed(2)
-      setVentaData({
-        ...ventaData,
-        cantidad,
-        valor
-      })
-    } else {
-      setVentaData({
-        ...ventaData,
-        cantidad,
-        valor: ''
-      })
-    }
-  }
 
   const getEstadoColor = (estado) => {
     const colors = {
@@ -302,19 +286,11 @@ function Surtidores() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Cantidad (galones)
+                    Cantidad Calculada (galones)
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    max={selectedSurtidor.combustibles[ventaData.combustible].stock}
-                    required
-                    className="input-field"
-                    value={ventaData.cantidad}
-                    onChange={(e) => handleCantidadChange(e.target.value)}
-                    placeholder="Se calcula automáticamente"
-                  />
+                  <div className="input-field bg-gray-50 text-gray-700 cursor-not-allowed">
+                    {ventaData.cantidad ? `${ventaData.cantidad} gal` : 'Se calculará automáticamente'}
+                  </div>
                   <p className="text-xs text-gray-500 mt-1">
                     Stock disponible: {formatearCantidad(selectedSurtidor.combustibles[ventaData.combustible].stock)}
                   </p>
