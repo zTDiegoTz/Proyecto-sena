@@ -65,7 +65,8 @@ function Precios() {
 
   const guardarPrecios = () => {
     // Validar que los precios sean válidos
-    if (nuevosPrecios.extra <= 0 || nuevosPrecios.corriente <= 0 || nuevosPrecios.acpm <= 0) {
+    if (!nuevosPrecios.extra || !nuevosPrecios.corriente || !nuevosPrecios.acpm || 
+        nuevosPrecios.extra <= 0 || nuevosPrecios.corriente <= 0 || nuevosPrecios.acpm <= 0) {
       alert('Todos los precios deben ser mayores a $0 COP')
       return
     }
@@ -230,7 +231,7 @@ function Precios() {
                 min="0.01"
                 className="input-field pl-8"
                 value={nuevosPrecios.extra}
-                onChange={(e) => setNuevosPrecios({...nuevosPrecios, extra: parseFloat(e.target.value) || 0})}
+                onChange={(e) => setNuevosPrecios({...nuevosPrecios, extra: e.target.value === '' ? '' : parseFloat(e.target.value)})}
                 disabled={!editingPrecios}
                 placeholder="0.00"
               />
@@ -252,7 +253,7 @@ function Precios() {
                 min="0.01"
                 className="input-field pl-8"
                 value={nuevosPrecios.corriente}
-                onChange={(e) => setNuevosPrecios({...nuevosPrecios, corriente: parseFloat(e.target.value) || 0})}
+                onChange={(e) => setNuevosPrecios({...nuevosPrecios, corriente: e.target.value === '' ? '' : parseFloat(e.target.value)})}
                 disabled={!editingPrecios}
                 placeholder="0.00"
               />
@@ -274,7 +275,7 @@ function Precios() {
                 min="0.01"
                 className="input-field pl-8"
                 value={nuevosPrecios.acpm}
-                onChange={(e) => setNuevosPrecios({...nuevosPrecios, acpm: parseFloat(e.target.value) || 0})}
+                onChange={(e) => setNuevosPrecios({...nuevosPrecios, acpm: e.target.value === '' ? '' : parseFloat(e.target.value)})}
                 disabled={!editingPrecios}
                 placeholder="0.00"
               />
