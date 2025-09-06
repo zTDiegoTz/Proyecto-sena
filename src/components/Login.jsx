@@ -34,6 +34,14 @@ function Login() {
       if (result.success) {
         // El login se maneja automáticamente en el contexto
         setError('')
+        
+        // Mostrar mensaje específico para bomberos
+        if (result.usuario.rol === 'bombero') {
+          // Pequeño delay para que se vea el mensaje
+          setTimeout(() => {
+            alert(`✅ ¡Bienvenido ${result.usuario.nombre}!\n\nTu turno se ha iniciado automáticamente.\n\nPuedes comenzar a registrar ventas.`)
+          }, 100)
+        }
       } else {
         setError(result.message || 'Error al iniciar sesión')
       }

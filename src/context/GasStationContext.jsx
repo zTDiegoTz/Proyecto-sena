@@ -383,12 +383,40 @@ export function GasStationProvider({ children }) {
     )
     if (usuario) {
       dispatch({ type: ACTIONS.LOGIN, payload: usuario })
+      
+      // Si es bombero, iniciar turno automáticamente
+      if (usuario.rol === 'bombero') {
+        // Verificar si ya tiene un turno activo
+        const turnoActivo = state.turnos.find(turno => 
+          turno.bomberoId === usuario.id && turno.activo
+        )
+        
+        // Solo iniciar turno si no tiene uno activo
+        if (!turnoActivo) {
+          dispatch({ type: ACTIONS.INICIAR_TURNO, payload: { 
+            bomberoId: usuario.id, 
+            bomberoNombre: usuario.nombre 
+          }})
+        }
+      }
+      
       return { success: true, usuario }
     }
     return { success: false, message: 'Credenciales inválidas' }
   }
 
   const logout = () => {
+    // Si es bombero, finalizar turno automáticamente
+    if (state.usuarioActual && state.usuarioActual.rol === 'bombero') {
+      const turnoActivo = state.turnos.find(turno => 
+        turno.bomberoId === state.usuarioActual.id && turno.activo
+      )
+      
+      if (turnoActivo) {
+        dispatch({ type: ACTIONS.FINALIZAR_TURNO, payload: turnoActivo.id })
+      }
+    }
+    
     dispatch({ type: ACTIONS.LOGOUT })
   }
 
