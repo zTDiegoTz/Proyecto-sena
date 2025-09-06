@@ -64,6 +64,13 @@ function Surtidores() {
       return
     }
 
+    // Validar que el precio unitario no haya sido modificado por usuarios no autorizados
+    const precioOriginal = selectedSurtidor.combustibles[ventaData.combustible].precio
+    if (ventaData.precioUnitario !== precioOriginal && !tienePermiso('gestionar_precios') && !tienePermiso('todos')) {
+      alert('No tienes permisos para modificar el precio unitario. Contacta al gerente.')
+      return
+    }
+
     const cantidad = parseFloat(ventaData.cantidad)
     const precioUnitario = parseFloat(ventaData.precioUnitario)
     const total = cantidad * precioUnitario
@@ -124,6 +131,21 @@ function Surtidores() {
         ...ventaData,
         valor,
         cantidad: ''
+      })
+    }
+  }
+
+  const handlePrecioUnitarioChange = (precio) => {
+    // Solo permitir cambio si tiene permisos
+    if (tienePermiso('gestionar_precios') || tienePermiso('todos')) {
+      const nuevoPrecio = parseFloat(precio) || 0
+      const nuevaCantidad = ventaData.valor && nuevoPrecio > 0 ? 
+        (parseFloat(ventaData.valor) / nuevoPrecio).toFixed(2) : ''
+      
+      setVentaData({
+        ...ventaData,
+        precioUnitario: nuevoPrecio,
+        cantidad: nuevaCantidad
       })
     }
   }
@@ -301,16 +323,26 @@ function Surtidores() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Precio Unitario
+                    {!tienePermiso('gestionar_precios') && !tienePermiso('todos') && (
+                      <span className="text-xs text-gray-500 ml-2">(Solo lectura)</span>
+                    )}
                   </label>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
                     required
-                    className="input-field"
+                    className={`input-field ${!tienePermiso('gestionar_precios') && !tienePermiso('todos') ? 'bg-gray-50 text-gray-700 cursor-not-allowed' : ''}`}
                     value={ventaData.precioUnitario}
-                    onChange={(e) => setVentaData({...ventaData, precioUnitario: e.target.value})}
+                    onChange={(e) => handlePrecioUnitarioChange(e.target.value)}
+                    disabled={!tienePermiso('gestionar_precios') && !tienePermiso('todos')}
+                    title={!tienePermiso('gestionar_precios') && !tienePermiso('todos') ? 'Solo el Gerente y Super Admin pueden modificar precios' : ''}
                   />
+                  {!tienePermiso('gestionar_precios') && !tienePermiso('todos') && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Solo el Gerente y Super Admin pueden modificar este precio
+                    </p>
+                  )}
                 </div>
 
                 {ventaData.cantidad && ventaData.precioUnitario && (
