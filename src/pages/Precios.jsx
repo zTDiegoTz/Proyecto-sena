@@ -47,7 +47,9 @@ function Precios() {
   const formatearMoneda = (valor) => {
     return new Intl.NumberFormat('es-CO', {
       style: 'currency',
-      currency: 'USD'
+      currency: 'COP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
     }).format(valor)
   }
 
@@ -64,7 +66,7 @@ function Precios() {
   const guardarPrecios = () => {
     // Validar que los precios sean válidos
     if (nuevosPrecios.extra <= 0 || nuevosPrecios.corriente <= 0 || nuevosPrecios.acpm <= 0) {
-      alert('Todos los precios deben ser mayores a $0')
+      alert('Todos los precios deben ser mayores a $0 COP')
       return
     }
 

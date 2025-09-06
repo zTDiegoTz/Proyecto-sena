@@ -9,9 +9,9 @@ const initialState = {
       nombre: "Surtidor 1",
       estado: "disponible",
       combustibles: {
-        extra: { precio: 3.50, stock: 1000, vendido: 0 },
-        corriente: { precio: 3.20, stock: 1000, vendido: 0 },
-        acpm: { precio: 2.80, stock: 1000, vendido: 0 }
+        extra: { precio: 12500, stock: 1000, vendido: 0 },
+        corriente: { precio: 11500, stock: 1000, vendido: 0 },
+        acpm: { precio: 10500, stock: 1000, vendido: 0 }
       }
     },
     {
@@ -19,9 +19,9 @@ const initialState = {
       nombre: "Surtidor 2",
       estado: "disponible",
       combustibles: {
-        extra: { precio: 3.50, stock: 1000, vendido: 0 },
-        corriente: { precio: 3.20, stock: 1000, vendido: 0 },
-        acpm: { precio: 2.80, stock: 1000, vendido: 0 }
+        extra: { precio: 12500, stock: 1000, vendido: 0 },
+        corriente: { precio: 11500, stock: 1000, vendido: 0 },
+        acpm: { precio: 10500, stock: 1000, vendido: 0 }
       }
     },
     {
@@ -29,9 +29,9 @@ const initialState = {
       nombre: "Surtidor 3",
       estado: "disponible",
       combustibles: {
-        extra: { precio: 3.50, stock: 1000, vendido: 0 },
-        corriente: { precio: 3.20, stock: 1000, vendido: 0 },
-        acpm: { precio: 2.80, stock: 1000, vendido: 0 }
+        extra: { precio: 12500, stock: 1000, vendido: 0 },
+        corriente: { precio: 11500, stock: 1000, vendido: 0 },
+        acpm: { precio: 10500, stock: 1000, vendido: 0 }
       }
     },
     {
@@ -39,9 +39,9 @@ const initialState = {
       nombre: "Surtidor 4",
       estado: "disponible",
       combustibles: {
-        extra: { precio: 3.50, stock: 1000, vendido: 0 },
-        corriente: { precio: 3.20, stock: 1000, vendido: 0 },
-        acpm: { precio: 2.80, stock: 1000, vendido: 0 }
+        extra: { precio: 12500, stock: 1000, vendido: 0 },
+        corriente: { precio: 11500, stock: 1000, vendido: 0 },
+        acpm: { precio: 10500, stock: 1000, vendido: 0 }
       }
     },
     {
@@ -49,9 +49,9 @@ const initialState = {
       nombre: "Surtidor 5",
       estado: "disponible",
       combustibles: {
-        extra: { precio: 3.50, stock: 1000, vendido: 0 },
-        corriente: { precio: 3.20, stock: 1000, vendido: 0 },
-        acpm: { precio: 2.80, stock: 1000, vendido: 0 }
+        extra: { precio: 12500, stock: 1000, vendido: 0 },
+        corriente: { precio: 11500, stock: 1000, vendido: 0 },
+        acpm: { precio: 10500, stock: 1000, vendido: 0 }
       }
     },
     {
@@ -59,9 +59,9 @@ const initialState = {
       nombre: "Surtidor 6",
       estado: "disponible",
       combustibles: {
-        extra: { precio: 3.50, stock: 1000, vendido: 0 },
-        corriente: { precio: 3.20, stock: 1000, vendido: 0 },
-        acpm: { precio: 2.80, stock: 1000, vendido: 0 }
+        extra: { precio: 12500, stock: 1000, vendido: 0 },
+        corriente: { precio: 11500, stock: 1000, vendido: 0 },
+        acpm: { precio: 10500, stock: 1000, vendido: 0 }
       }
     }
   ],
@@ -69,12 +69,12 @@ const initialState = {
   // Ventas mejoradas con todos los campos solicitados
   ventas: [],
   
-  // Configuración de precios
+  // Configuración de precios (en pesos colombianos)
   configuracion: {
     precios: {
-      extra: 3.50,
-      corriente: 3.20,
-      acpm: 2.80
+      extra: 12500,
+      corriente: 11500,
+      acpm: 10500
     }
   },
 

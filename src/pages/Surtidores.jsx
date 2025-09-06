@@ -85,7 +85,7 @@ function Surtidores() {
 
     // Mostrar mensaje de confirmación
     if (tienePermiso('registrar_ventas')) {
-      alert(`✅ Venta registrada exitosamente!\n\nSurtidor: ${selectedSurtidor.nombre}\nCombustible: ${ventaData.combustible.toUpperCase()}\nValor: $${parseFloat(ventaData.valor).toFixed(2)}\nCantidad: ${cantidad} galones\nPrecio unitario: $${precioUnitario.toFixed(2)}\nTotal: $${total.toFixed(2)}\n\nLa venta ha sido registrada a tu nombre.`)
+      alert(`✅ Venta registrada exitosamente!\n\nSurtidor: ${selectedSurtidor.nombre}\nCombustible: ${ventaData.combustible.toUpperCase()}\nValor: ${formatearMoneda(parseFloat(ventaData.valor))}\nCantidad: ${cantidad} galones\nPrecio unitario: ${formatearMoneda(precioUnitario)}\nTotal: ${formatearMoneda(total)}\n\nLa venta ha sido registrada a tu nombre.`)
     }
 
     setShowModal(false)
@@ -150,7 +150,9 @@ function Surtidores() {
   const formatearMoneda = (valor) => {
     return new Intl.NumberFormat('es-CO', {
       style: 'currency',
-      currency: 'USD'
+      currency: 'COP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
     }).format(valor)
   }
 
@@ -277,7 +279,7 @@ function Surtidores() {
                     className="input-field"
                     value={ventaData.valor}
                     onChange={(e) => handleValorChange(e.target.value)}
-                    placeholder="Ingrese valor en pesos"
+                    placeholder="Ej: 50000"
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Se calcularán automáticamente los galones

@@ -38,7 +38,9 @@ const Dashboard = () => {
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('es-CO', {
       style: 'currency',
-      currency: 'USD'
+      currency: 'COP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
     }).format(amount)
   }
 
