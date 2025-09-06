@@ -423,7 +423,7 @@ export function GasStationProvider({ children }) {
     
     const permisos = {
       super_admin: ['todos'],
-      administrador: ['gestionar_surtidores', 'gestionar_ventas', 'gestionar_turnos', 'ver_reportes', 'ver_ventas', 'gestionar_precios'],
+      administrador: ['gestionar_surtidores', 'gestionar_ventas', 'gestionar_turnos', 'ver_reportes', 'ver_ventas', 'gestionar_precios', 'gestionar_inventario'],
       bombero: ['registrar_ventas', 'gestionar_turno_propio']
     }
     

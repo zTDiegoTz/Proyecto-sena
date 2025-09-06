@@ -11,7 +11,7 @@ function Precios() {
   })
   const [historialPrecios, setHistorialPrecios] = useState([])
 
-  // Verificar permisos
+  // Verificar permisos - Solo gerente y super admin pueden gestionar precios
   if (!tienePermiso('gestionar_precios') && !tienePermiso('todos')) {
     return (
       <div className="text-center py-12">
@@ -19,8 +19,15 @@ function Precios() {
           Acceso Denegado
         </div>
         <p className="text-gray-600 mt-2">
-          No tienes permisos para gestionar precios.
+          Solo el Gerente y Super Administrador pueden gestionar precios de combustible.
         </p>
+        <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg max-w-md mx-auto">
+          <p className="text-sm text-yellow-800">
+            <strong>Permisos requeridos:</strong><br/>
+            • Super Administrador (acceso total)<br/>
+            • Administrador/Gerente (gestión de precios)
+          </p>
+        </div>
       </div>
     )
   }
