@@ -66,13 +66,14 @@ function Surtidores() {
 
     // Validar que el precio unitario no haya sido modificado por usuarios no autorizados
     const precioOriginal = selectedSurtidor.combustibles[ventaData.combustible].precio
-    if (ventaData.precioUnitario !== precioOriginal && !tienePermiso('gestionar_precios') && !tienePermiso('todos')) {
+    const precioActual = parseFloat(ventaData.precioUnitario) || precioOriginal
+    if (precioActual !== precioOriginal && !tienePermiso('gestionar_precios') && !tienePermiso('todos')) {
       alert('No tienes permisos para modificar el precio unitario. Contacta al gerente.')
       return
     }
 
     const cantidad = parseFloat(ventaData.cantidad)
-    const precioUnitario = parseFloat(ventaData.precioUnitario)
+    const precioUnitario = parseFloat(ventaData.precioUnitario) || precioOriginal
     const total = cantidad * precioUnitario
 
     // Verificar stock disponible
@@ -138,9 +139,13 @@ function Surtidores() {
   const handlePrecioUnitarioChange = (precio) => {
     // Solo permitir cambio si tiene permisos
     if (tienePermiso('gestionar_precios') || tienePermiso('todos')) {
-      const nuevoPrecio = parseFloat(precio) || 0
-      const nuevaCantidad = ventaData.valor && nuevoPrecio > 0 ? 
-        (parseFloat(ventaData.valor) / nuevoPrecio).toFixed(2) : ''
+      const nuevoPrecio = precio === '' ? '' : parseFloat(precio)
+      
+      // Solo recalcular cantidad si hay un valor válido y un precio válido
+      let nuevaCantidad = ventaData.cantidad
+      if (ventaData.valor && nuevoPrecio && nuevoPrecio > 0) {
+        nuevaCantidad = (parseFloat(ventaData.valor) / nuevoPrecio).toFixed(2)
+      }
       
       setVentaData({
         ...ventaData,
