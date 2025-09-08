@@ -2,7 +2,7 @@
   "name": "estacion-gasolina",
   "version": "1.0.0",
   "description": "Aplicación web para gestión de estación de gasolina",
-  "homepage": "https://tuusuario.github.io/proyecto/",
+  "homepage": "https://zTDiegoTz.github.io/Proyecto-sena/",
   "main": "index.js",
   "scripts": {
     "predeploy": "npm run build",
