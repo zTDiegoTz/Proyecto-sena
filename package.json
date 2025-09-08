@@ -2,17 +2,20 @@
   "name": "estacion-gasolina",
   "version": "1.0.0",
   "description": "Aplicación web para gestión de estación de gasolina",
+  "homepage": "https://tuusuario.github.io/proyecto/",
   "main": "index.js",
   "scripts": {
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
+    "lucide-react": "^0.263.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.8.1",
-    "lucide-react": "^0.263.1",
     "recharts": "^2.5.0"
   },
   "devDependencies": {
@@ -20,9 +23,9 @@
     "@types/react-dom": "^18.0.11",
     "@vitejs/plugin-react": "^3.1.0",
     "autoprefixer": "^10.4.14",
+    "gh-pages": "^6.3.0",
     "postcss": "^8.4.21",
     "tailwindcss": "^3.2.7",
     "vite": "^4.1.0"
   }
 }
-
