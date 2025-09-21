@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useGasStation } from '../context/GasStationContext'
+import { useSupabaseGasStation as useGasStation } from '../context/SupabaseGasStationContext'
 
 function Surtidores() {
   const { 

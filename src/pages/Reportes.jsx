@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { useGasStation } from '../context/GasStationContext'
+import { useSupabaseGasStation as useGasStation } from '../context/SupabaseGasStationContext'
 
 const Reportes = () => {
   const { ventas, surtidores, tienePermiso } = useGasStation()

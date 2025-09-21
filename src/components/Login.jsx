@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useGasStation } from '../context/GasStationContext'
+import { useSupabaseGasStation as useGasStation } from '../context/SupabaseGasStationContext'
 
 function Login() {
   const [username, setUsername] = useState('')

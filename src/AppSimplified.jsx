@@ -10,24 +10,24 @@ import Inventario from './pages/Inventario'
 import Precios from './pages/Precios'
 import Usuarios from './pages/Usuarios'
 import Reportes from './pages/Reportes'
-// import { GasStationProvider, useGasStation } from './context/GasStationContext'  // Versión localStorage
-import { SupabaseGasStationProvider as GasStationProvider, useSupabaseGasStation as useGasStation } from './context/SupabaseGasStationContext'  // ✅ Versión Supabase
-
-// Componente para proteger rutas
-function ProtectedRoute({ children }) {
-  const { usuarioActual } = useGasStation()
-  
-  if (!usuarioActual) {
-    return <Navigate to="/login" replace />
-  }
-  
-  return children
-}
+import { SupabaseGasStationProvider, useSupabaseGasStation } from './context/SupabaseGasStationContext'
 
 // Componente principal de la aplicación
 function AppContent() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { usuarioActual, logout } = useGasStation()
+  const { usuarioActual, logout, loading } = useSupabaseGasStation()
+
+  // Mostrar loading mientras se cargan los datos
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Cargando aplicación...</p>
+        </div>
+      </div>
+    )
+  }
 
   // Si no hay usuario autenticado, mostrar login
   if (!usuarioActual) {
@@ -74,8 +74,8 @@ function AppContent() {
                     </svg>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900">{usuarioActual.nombre}</p>
-                    <p className="text-xs text-gray-500 capitalize">{usuarioActual.rol.replace('_', ' ')}</p>
+                    <p className="text-sm font-medium text-gray-900">{usuarioActual.name || usuarioActual.nombre}</p>
+                    <p className="text-xs text-gray-500 capitalize">{usuarioActual.role || usuarioActual.rol}</p>
                   </div>
                 </div>
                 
@@ -87,7 +87,7 @@ function AppContent() {
                 >
                   <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
+                  </svg>
                   Cerrar Sesión
                 </button>
               </div>
@@ -99,47 +99,15 @@ function AppContent() {
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50">
           <div className="container mx-auto px-6 py-8">
             <Routes>
-              <Route path="/" element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              } />
-              <Route path="/surtidores" element={
-                <ProtectedRoute>
-                  <Surtidores />
-                </ProtectedRoute>
-              } />
-              <Route path="/ventas" element={
-                <ProtectedRoute>
-                  <Ventas />
-                </ProtectedRoute>
-              } />
-              <Route path="/turnos" element={
-                <ProtectedRoute>
-                  <Turnos />
-                </ProtectedRoute>
-              } />
-              <Route path="/inventario" element={
-                <ProtectedRoute>
-                  <Inventario />
-                </ProtectedRoute>
-              } />
-              <Route path="/precios" element={
-                <ProtectedRoute>
-                  <Precios />
-                </ProtectedRoute>
-              } />
-              <Route path="/usuarios" element={
-                <ProtectedRoute>
-                  <Usuarios />
-                </ProtectedRoute>
-              } />
-              <Route path="/reportes" element={
-                <ProtectedRoute>
-                  <Reportes />
-                </ProtectedRoute>
-              } />
-              <Route path="/login" element={<Login />} />
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/surtidores" element={<Surtidores />} />
+              <Route path="/ventas" element={<Ventas />} />
+              <Route path="/turnos" element={<Turnos />} />
+              <Route path="/inventario" element={<Inventario />} />
+              <Route path="/precios" element={<Precios />} />
+              <Route path="/usuarios" element={<Usuarios />} />
+              <Route path="/reportes" element={<Reportes />} />
+              <Route path="/login" element={<Navigate to="/" replace />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </div>
@@ -149,14 +117,14 @@ function AppContent() {
   )
 }
 
-function App() {
+function AppSimplified() {
   return (
-    <GasStationProvider>
+    <SupabaseGasStationProvider>
       <Router>
         <AppContent />
       </Router>
-    </GasStationProvider>
+    </SupabaseGasStationProvider>
   )
 }
 
-export default App
+export default AppSimplified

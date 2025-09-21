@@ -1,5 +1,5 @@
 import React from 'react'
-import { useGasStation } from '../context/GasStationContext'
+import { useSupabaseGasStation as useGasStation } from '../context/SupabaseGasStationContext'
 
 const Dashboard = () => {
   const { ventas, surtidores, tienePermiso } = useGasStation()

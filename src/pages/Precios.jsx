@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useGasStation } from '../context/GasStationContext'
+import { useSupabaseGasStation as useGasStation } from '../context/SupabaseGasStationContext'
 
 function Precios() {
   const { configuracion, actualizarPrecios, tienePermiso, usuarioActual } = useGasStation()
