@@ -287,11 +287,18 @@ function GestionSurtidores({ surtidores }) {
             <div className="space-y-3">
               <div>
                 <label className="text-sm font-medium text-gray-600">Estado:</label>
-                <select className="ml-2 text-sm border rounded px-2 py-1">
-                  <option value="disponible" selected={surtidor.estado === 'disponible'}>Disponible</option>
-                  <option value="ocupado" selected={surtidor.estado === 'ocupado'}>Ocupado</option>
-                  <option value="mantenimiento" selected={surtidor.estado === 'mantenimiento'}>Mantenimiento</option>
-                  <option value="fuera_servicio" selected={surtidor.estado === 'fuera_servicio'}>Fuera de Servicio</option>
+                <select 
+                  className="ml-2 text-sm border rounded px-2 py-1"
+                  value={surtidor.estado}
+                  onChange={(e) => {
+                    // Aquí puedes agregar la lógica para actualizar el estado
+                    console.log('Estado cambiado a:', e.target.value)
+                  }}
+                >
+                  <option value="disponible">Disponible</option>
+                  <option value="ocupado">Ocupado</option>
+                  <option value="mantenimiento">Mantenimiento</option>
+                  <option value="fuera_servicio">Fuera de Servicio</option>
                 </select>
               </div>
 

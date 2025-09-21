@@ -2,6 +2,7 @@ import React from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { SimpleSupabaseProvider, useSimpleSupabase } from './context/SimpleSupabaseContext'
 import AdminDashboard from './components/AdminDashboard'
+import DashboardBombero from './components/DashboardBombero'
 
 // Componente de Login Simple
 function LoginSimple() {
@@ -213,8 +214,8 @@ function AppContent() {
     return <AdminDashboard />
   }
 
-  // Para bomberos, mostrar dashboard simple
-  return <DashboardSimple />
+  // Para bomberos, mostrar dashboard con funcionalidad de ventas
+  return <DashboardBombero />
 }
 
 function AppBasico() {

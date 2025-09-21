@@ -104,6 +104,123 @@ export const usuariosService = {
   }
 }
 
+// ==================== SERVICIOS DE VENTAS ====================
+
+export const ventasService = {
+  // Crear nueva venta
+  async crear(venta) {
+    try {
+      const { data, error } = await supabase
+        .from('ventas')
+        .insert([{
+          surtidor_id: venta.surtidor_id,
+          surtidor_nombre: venta.surtidor_nombre,
+          bombero_id: venta.bombero_id,
+          bombero_nombre: venta.bombero_nombre,
+          tipo_combustible: venta.tipo_combustible,
+          cantidad: venta.cantidad_litros, // Usar cantidad_litros para la columna cantidad
+          cantidad_galones: venta.cantidad_galones,
+          cantidad_litros: venta.cantidad_litros,
+          precio_por_galon: venta.precio_por_galon,
+          valor_total: venta.total,
+          metodo_pago: venta.metodo_pago,
+          cliente_nombre: venta.cliente_nombre,
+          cliente_documento: venta.cliente_documento,
+          placa_vehiculo: venta.placa_vehiculo,
+          fecha_venta: venta.fecha_venta || new Date().toISOString()
+        }])
+        .select()
+        .single()
+      
+      if (error) throw error
+      return { success: true, data }
+    } catch (error) {
+      return handleSupabaseError(error)
+    }
+  },
+
+  // Obtener todas las ventas
+  async obtenerTodos() {
+    try {
+      const { data, error } = await supabase
+        .from('ventas')
+        .select('*')
+        .order('fecha_venta', { ascending: false })
+      
+      if (error) throw error
+      return { success: true, data }
+    } catch (error) {
+      return handleSupabaseError(error)
+    }
+  },
+
+  // Obtener ventas por bombero
+  async obtenerPorBombero(bomberoId) {
+    try {
+      const { data, error } = await supabase
+        .from('ventas')
+        .select('*')
+        .eq('bombero_id', bomberoId)
+        .order('fecha_venta', { ascending: false })
+      
+      if (error) throw error
+      return { success: true, data }
+    } catch (error) {
+      return handleSupabaseError(error)
+    }
+  },
+
+  // Obtener ventas por fecha
+  async obtenerPorFecha(fechaInicio, fechaFin) {
+    try {
+      const { data, error } = await supabase
+        .from('ventas')
+        .select('*')
+        .gte('fecha_venta', fechaInicio)
+        .lte('fecha_venta', fechaFin)
+        .order('fecha_venta', { ascending: false })
+      
+      if (error) throw error
+      return { success: true, data }
+    } catch (error) {
+      return handleSupabaseError(error)
+    }
+  },
+
+  // Obtener estadísticas de ventas del día
+  async obtenerEstadisticasDelDia() {
+    try {
+      const hoy = new Date()
+      const inicioDelDia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).toISOString()
+      const finDelDia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + 1).toISOString()
+
+      const { data, error } = await supabase
+        .from('ventas')
+        .select('total, cantidad')
+        .gte('fecha_venta', inicioDelDia)
+        .lt('fecha_venta', finDelDia)
+      
+      if (error) throw error
+
+      const totalVentas = data.reduce((sum, venta) => sum + venta.total, 0)
+      const totalLitros = data.reduce((sum, venta) => sum + venta.cantidad, 0)
+      const numeroTransacciones = data.length
+
+      return { 
+        success: true, 
+        data: {
+          totalVentas,
+          totalLitros,
+          numeroTransacciones,
+          ventasDelDia: data
+        }
+      }
+    } catch (error) {
+      return handleSupabaseError(error)
+    }
+  }
+}
+
 // ==================== SERVICIOS DE SURTIDORES ====================
 
 export const surtidoresService = {
@@ -163,8 +280,25 @@ export const surtidoresService = {
     }
   },
 
-  // Actualizar stock de combustible
-  async actualizarStock(surtidorId, tipoCombustible, nuevoStock) {
+  // Actualizar stock de combustible (reducir por venta)
+  async actualizarStock(surtidorId, tipoCombustible, cantidadVendida) {
+    try {
+      // Usar la función PostgreSQL para actualizar stock y vendido
+      const { data, error } = await supabase.rpc('actualizar_stock_venta', {
+        p_surtidor_id: surtidorId,
+        p_tipo_combustible: tipoCombustible,
+        p_cantidad: cantidadVendida
+      })
+      
+      if (error) throw error
+      return { success: true, data }
+    } catch (error) {
+      return handleSupabaseError(error)
+    }
+  },
+
+  // Establecer stock específico de combustible
+  async establecerStock(surtidorId, tipoCombustible, nuevoStock) {
     try {
       const { data, error } = await supabase
         .from('combustibles_surtidor')
@@ -203,63 +337,6 @@ export const surtidoresService = {
   }
 }
 
-// ==================== SERVICIOS DE VENTAS ====================
-
-export const ventasService = {
-  // Obtener todas las ventas
-  async obtenerTodas() {
-    try {
-      const { data, error } = await supabase
-        .from('ventas')
-        .select('*')
-        .order('fecha_hora', { ascending: false })
-      
-      if (error) throw error
-      return { success: true, data }
-    } catch (error) {
-      return handleSupabaseError(error)
-    }
-  },
-
-  // Registrar nueva venta
-  async registrar(venta) {
-    try {
-      // Iniciar transacción para actualizar stock y registrar venta
-      const { data: ventaData, error: ventaError } = await supabase
-        .from('ventas')
-        .insert([{
-          surtidor_id: venta.surtidorId,
-          surtidor_nombre: venta.surtidorNombre,
-          tipo_combustible: venta.tipoCombustible,
-          cantidad: venta.cantidad,
-          precio_unitario: venta.precioUnitario,
-          valor_total: venta.valorTotal,
-          bombero_id: venta.bomberoId,
-          bombero_nombre: venta.bomberoNombre,
-          turno_id: venta.turnoId
-        }])
-        .select()
-        .single()
-      
-      if (ventaError) throw ventaError
-
-      // Actualizar stock y vendido usando la función PostgreSQL
-      const { error: stockError } = await supabase.rpc('actualizar_stock_venta', {
-        p_surtidor_id: venta.surtidorId,
-        p_tipo_combustible: venta.tipoCombustible,
-        p_cantidad: venta.cantidad
-      })
-      
-      if (stockError) {
-        console.error('Error al actualizar stock:', stockError)
-      }
-      
-      return { success: true, data: ventaData }
-    } catch (error) {
-      return handleSupabaseError(error)
-    }
-  }
-}
 
 // ==================== SERVICIOS DE TURNOS ====================
 
