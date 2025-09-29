@@ -21,16 +21,23 @@ export const usuariosService = {
   // Crear usuario
   async crear(usuario) {
     try {
+      // Preparar datos de inserción
+      const userData = {
+        username: usuario.username,
+        password_hash: usuario.password, // En producción, hash la contraseña
+        name: usuario.nombre || usuario.name,
+        role: usuario.rol || usuario.role,
+        activo: true // Establecer como activo por defecto
+      }
+      
+      // Solo agregar email si no está vacío
+      if (usuario.email && usuario.email.trim() !== '') {
+        userData.email = usuario.email.trim()
+      }
+      
       const { data, error } = await supabase
         .from('users')
-        .insert([{
-          username: usuario.username,
-          password_hash: usuario.password, // En producción, hash la contraseña
-          name: usuario.nombre || usuario.name,
-          role: usuario.rol || usuario.role,
-          email: usuario.email,
-          activo: true // Establecer como activo por defecto
-        }])
+        .insert([userData])
         .select()
         .single()
       
@@ -48,9 +55,18 @@ export const usuariosService = {
       if (usuario.name || usuario.nombre) updateData.name = usuario.name || usuario.nombre
       if (usuario.role || usuario.rol) updateData.role = usuario.role || usuario.rol
       if (usuario.username) updateData.username = usuario.username
-      if (usuario.email) updateData.email = usuario.email
       if (usuario.password) updateData.password_hash = usuario.password
       if (usuario.activo !== undefined) updateData.activo = usuario.activo
+      
+      // Solo actualizar email si no está vacío
+      if (usuario.email !== undefined) {
+        if (usuario.email && usuario.email.trim() !== '') {
+          updateData.email = usuario.email.trim()
+        } else {
+          // Si el email está vacío, establecer como null
+          updateData.email = null
+        }
+      }
 
       const { data, error } = await supabase
         .from('users')
