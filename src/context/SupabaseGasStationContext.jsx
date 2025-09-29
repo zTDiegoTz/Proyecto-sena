@@ -198,9 +198,32 @@ export function SupabaseGasStationProvider({ children }) {
   }
 
   const cargarVentas = async () => {
-    const resultado = await ventasService.obtenerTodas()
+    const resultado = await ventasService.obtenerTodos()
     if (resultado.success) {
-      dispatch({ type: ACTIONS.SET_VENTAS, payload: resultado.data })
+      // Transformar los datos de la base de datos al formato esperado por la interfaz
+      const ventasTransformadas = resultado.data.map(venta => ({
+        id: venta.id,
+        surtidorId: venta.surtidor_id,
+        surtidorNombre: venta.surtidor_nombre,
+        bomberoId: venta.bombero_id,
+        bomberoNombre: venta.bombero_nombre,
+        tipoCombustible: venta.tipo_combustible,
+        cantidad: venta.cantidad || venta.cantidad_litros,
+        cantidadGalones: venta.cantidad_galones,
+        cantidadLitros: venta.cantidad_litros,
+        precioUnitario: venta.precio_unitario || venta.precio_por_galon,
+        precioPorGalon: venta.precio_por_galon,
+        valorTotal: venta.valor_total,
+        metodoPago: venta.metodo_pago,
+        clienteNombre: venta.cliente_nombre,
+        clienteDocumento: venta.cliente_documento,
+        placaVehiculo: venta.placa_vehiculo,
+        turnoId: venta.turno_id,
+        fechaHora: venta.fecha_venta || venta.fecha_hora,
+        fechaCreacion: venta.fecha_creacion,
+        fechaActualizacion: venta.fecha_actualizacion
+      }))
+      dispatch({ type: ACTIONS.SET_VENTAS, payload: ventasTransformadas })
     } else {
       dispatch({ type: ACTIONS.SET_ERROR, payload: resultado.message })
     }
@@ -289,7 +312,7 @@ export function SupabaseGasStationProvider({ children }) {
     }
 
     // Sincronizar con Supabase
-    const resultado = await ventasService.registrar(ventaData)
+    const resultado = await ventasService.crear(ventaData)
     if (resultado.success) {
       // Actualizar estado del surtidor a disponible
       await surtidoresService.actualizarEstado(surtidorId, 'disponible')
@@ -441,6 +464,29 @@ export function SupabaseGasStationProvider({ children }) {
     }
   }
 
+  // Funciones para ventas
+  const actualizarVenta = async (id, ventaData) => {
+    const resultado = await ventasService.actualizar(id, ventaData)
+    if (resultado.success) {
+      cargarVentas()
+      return resultado
+    } else {
+      dispatch({ type: ACTIONS.SET_ERROR, payload: resultado.message })
+      return resultado
+    }
+  }
+
+  const eliminarVenta = async (id) => {
+    const resultado = await ventasService.eliminar(id)
+    if (resultado.success) {
+      cargarVentas()
+      return resultado
+    } else {
+      dispatch({ type: ACTIONS.SET_ERROR, payload: resultado.message })
+      return resultado
+    }
+  }
+
   // Función de verificación de permisos (igual que antes)
   const tienePermiso = (permiso) => {
     if (!state.usuarioActual) return false
@@ -488,6 +534,10 @@ export function SupabaseGasStationProvider({ children }) {
     // Funciones para turnos
     iniciarTurno,
     finalizarTurno,
+    
+    // Funciones para ventas
+    actualizarVenta,
+    eliminarVenta,
     
     // Funciones de utilidad
     tienePermiso,

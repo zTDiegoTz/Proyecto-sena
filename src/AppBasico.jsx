@@ -1,6 +1,6 @@
 import React from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import { SimpleSupabaseProvider, useSimpleSupabase } from './context/SimpleSupabaseContext'
+import { SimpleSupabaseProvider, useSimpleSupabase } from './context/SimpleSupabaseContextTemp'
 import AdminDashboard from './components/AdminDashboard'
 import DashboardBombero from './components/DashboardBombero'
 

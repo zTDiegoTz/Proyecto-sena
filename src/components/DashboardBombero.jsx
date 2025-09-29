@@ -1,15 +1,77 @@
-import React, { useState } from 'react'
-import { useSimpleSupabase } from '../context/SimpleSupabaseContext'
+import React, { useState, useEffect } from 'react'
+import { useSimpleSupabase } from '../context/SimpleSupabaseContextTemp'
+import { ventasServiceClean } from '../services/ventasServiceClean'
 import VentaCombustibleSimple from './VentaCombustibleSimple'
 
 function DashboardBombero() {
   const { usuarioActual, logout, surtidores } = useSimpleSupabase()
   const [vistaActual, setVistaActual] = useState('dashboard')
+  const [ventasDelDia, setVentasDelDia] = useState({
+    total: 0,
+    transacciones: 0,
+    loading: true
+  })
+
+  // Función para cargar las ventas del día
+  const cargarVentasDelDia = async () => {
+    try {
+      setVentasDelDia(prev => ({ ...prev, loading: true }))
+      
+      const hoy = new Date()
+      const inicioDelDia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).toISOString()
+      const finDelDia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + 1).toISOString()
+      
+      const resultado = await ventasServiceClean.obtenerTodas({
+        fecha_desde: inicioDelDia,
+        fecha_hasta: finDelDia
+      })
+      
+      if (resultado.success) {
+        const ventas = resultado.data
+        const total = ventas.reduce((sum, venta) => sum + (venta.valor_total || 0), 0)
+        const transacciones = ventas.length
+        
+        setVentasDelDia({
+          total,
+          transacciones,
+          loading: false
+        })
+      } else {
+        console.error('Error al cargar ventas del día:', resultado.message)
+        setVentasDelDia({
+          total: 0,
+          transacciones: 0,
+          loading: false
+        })
+      }
+    } catch (error) {
+      console.error('Error al cargar ventas del día:', error)
+      setVentasDelDia({
+        total: 0,
+        transacciones: 0,
+        loading: false
+      })
+    }
+  }
+
+  // Cargar ventas del día al montar el componente
+  useEffect(() => {
+    cargarVentasDelDia()
+  }, [])
+
+  // Función para formatear moneda
+  const formatearMoneda = (valor) => {
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0
+    }).format(valor)
+  }
 
   const renderContenido = () => {
     switch (vistaActual) {
       case 'venta':
-        return <VentaCombustibleSimple />
+        return <VentaCombustibleSimple onVentaRealizada={cargarVentasDelDia} />
       case 'dashboard':
       default:
         return (
@@ -118,9 +180,30 @@ function DashboardBombero() {
                   <p className="text-sm text-gray-600">Estado: <span className="text-green-600 font-medium">Activo</span></p>
                 </div>
                 <div className="bg-white p-4 rounded-lg border shadow-sm">
-                  <h4 className="font-medium text-gray-900 mb-2">💰 Ventas del Día</h4>
-                  <p className="text-sm text-gray-600">Total: <span className="font-medium">$0</span></p>
-                  <p className="text-sm text-gray-600">Transacciones: <span className="font-medium">0</span></p>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium text-gray-900">💰 Ventas del Día</h4>
+                    <button
+                      onClick={cargarVentasDelDia}
+                      className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded transition-colors"
+                      disabled={ventasDelDia.loading}
+                    >
+                      {ventasDelDia.loading ? '⏳' : '🔄'}
+                    </button>
+                  </div>
+                  {ventasDelDia.loading ? (
+                    <div className="text-sm text-gray-500">
+                      <p>Cargando...</p>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-sm text-gray-600">
+                        Total: <span className="font-medium text-green-600">{formatearMoneda(ventasDelDia.total)}</span>
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Transacciones: <span className="font-medium text-blue-600">{ventasDelDia.transacciones}</span>
+                      </p>
+                    </>
+                  )}
                 </div>
                 <div className="bg-white p-4 rounded-lg border shadow-sm">
                   <h4 className="font-medium text-gray-900 mb-2">⛽ Surtidores</h4>

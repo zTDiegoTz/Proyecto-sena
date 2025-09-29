@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { useSimpleSupabase } from '../context/SimpleSupabaseContext'
+import { useSimpleSupabase } from '../context/SimpleSupabaseContextTemp'
 
-function VentaCombustibleSimple() {
+function VentaCombustibleSimple({ onVentaRealizada }) {
   const { usuarioActual, surtidores, realizarVenta, obtenerSurtidores } = useSimpleSupabase()
   
   // Estados del formulario de venta
@@ -30,20 +30,28 @@ function VentaCombustibleSimple() {
   // Actualizar combustibles disponibles cuando se selecciona un surtidor
   useEffect(() => {
     if (ventaData.surtidor_id) {
-      const surtidor = surtidores.find(s => s.id.toString() === ventaData.surtidor_id)
+      const surtidor = surtidores.find(s => s.id === ventaData.surtidor_id)
       setSurtidorSeleccionado(surtidor)
+      
+      console.log('Surtidor seleccionado:', surtidor)
+      console.log('Combustibles del surtidor:', surtidor?.combustibles)
       
       if (surtidor && surtidor.combustibles) {
         const combustibles = Object.entries(surtidor.combustibles)
           .filter(([tipo, datos]) => datos.stock > 0)
           .map(([tipo, datos]) => ({ tipo, ...datos }))
         setCombustiblesDisponibles(combustibles)
+        console.log('Combustibles disponibles:', combustibles)
       } else {
         setCombustiblesDisponibles([])
+        console.log('No se encontraron combustibles para el surtidor')
       }
       
       // Limpiar tipo de combustible si ya no está disponible
       setVentaData(prev => ({ ...prev, tipo_combustible: '', precio_por_galon: '' }))
+    } else {
+      setCombustiblesDisponibles([])
+      setSurtidorSeleccionado(null)
     }
   }, [ventaData.surtidor_id, surtidores])
 
@@ -95,8 +103,8 @@ function VentaCombustibleSimple() {
     if (!ventaData.surtidor_id) return 'Debe seleccionar un surtidor'
     if (!ventaData.tipo_combustible) return 'Debe seleccionar un tipo de combustible'
     
-    if (!ventaData.monto_dinero || parseFloat(ventaData.monto_dinero) <= 0) {
-      return 'Debe ingresar un monto válido'
+    if (!ventaData.monto_dinero || parseFloat(ventaData.monto_dinero) < 3000) {
+      return 'El monto mínimo de venta es $3,000'
     }
     
     // Validación de cliente según método de pago
@@ -106,14 +114,7 @@ function VentaCombustibleSimple() {
       if (!ventaData.placa_vehiculo.trim()) return 'Debe ingresar la placa del vehículo para venta a crédito'
     }
     
-    // Validar stock disponible (convertir galones a litros para validar)
-    const galones = galonesCalculados
-    const litrosEquivalentes = galones * 3.78541 // 1 galón = 3.78541 litros
-    const stockDisponible = surtidorSeleccionado?.combustibles[ventaData.tipo_combustible]?.stock || 0
-    
-    if (litrosEquivalentes > stockDisponible) {
-      return `Stock insuficiente. Disponible: ${stockDisponible}L (${(stockDisponible / 3.78541).toFixed(2)} gal), solicitado: ${galones.toFixed(2)} gal`
-    }
+    // Nota: No se valida stock ya que la aplicación no monitorea los tanques de los surtidores
 
     return null
   }
@@ -135,7 +136,7 @@ function VentaCombustibleSimple() {
       const ventaCompleta = {
         ...ventaData,
         cantidad_galones: galonesCalculados,
-        cantidad_litros: galonesCalculados * 3.78541, // Para actualizar stock
+        cantidad_litros: galonesCalculados * 3.78541, // Para cálculos internos
         precio_por_galon: parseFloat(ventaData.precio_por_galon),
         valor_total: totalCalculado, // Cambiar de 'total' a 'valor_total'
         surtidor_nombre: surtidorSeleccionado?.nombre || '', // Agregar nombre del surtidor
@@ -163,10 +164,14 @@ function VentaCombustibleSimple() {
         setSurtidorSeleccionado(null)
         setCombustiblesDisponibles([])
         
-        // Recargar surtidores para actualizar stock
+        // Recargar surtidores para actualizar datos
         setTimeout(() => {
           obtenerSurtidores()
           setMensaje('')
+          // Notificar al componente padre para actualizar las ventas del día
+          if (onVentaRealizada) {
+            onVentaRealizada()
+          }
         }, 3000)
       } else {
         setError(resultado.error || 'Error al registrar la venta')
@@ -263,11 +268,22 @@ function VentaCombustibleSimple() {
               name="tipo_combustible"
               value={ventaData.tipo_combustible}
               onChange={handleInputChange}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className={`w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                !ventaData.surtidor_id || combustiblesDisponibles.length === 0 
+                  ? 'bg-gray-100 cursor-not-allowed' 
+                  : 'bg-white cursor-pointer'
+              }`}
               required
-              disabled={!ventaData.surtidor_id}
+              disabled={!ventaData.surtidor_id || combustiblesDisponibles.length === 0}
             >
-              <option value="">Seleccionar combustible...</option>
+              <option value="">
+                {!ventaData.surtidor_id 
+                  ? "Primero selecciona un surtidor..." 
+                  : combustiblesDisponibles.length === 0 
+                    ? "No hay combustibles disponibles" 
+                    : "Seleccionar combustible..."
+                }
+              </option>
               {combustiblesDisponibles.map((combustible) => (
                 <option key={combustible.tipo} value={combustible.tipo}>
                   {combustible.tipo.toUpperCase()} - ${combustible.precio.toLocaleString()}/gal
@@ -286,20 +302,15 @@ function VentaCombustibleSimple() {
               name="monto_dinero"
               value={ventaData.monto_dinero}
               onChange={handleInputChange}
-              step="1000"
-              min="1000"
+              step="1"
+              min="3000"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-green-500"
-              placeholder="50000"
+              placeholder="3000"
               required
             />
             <p className="text-xs text-green-600 mt-1 font-medium">
               💡 Galones calculados: {galonesCalculados.toFixed(2)} gal
             </p>
-            {surtidorSeleccionado?.combustibles[ventaData.tipo_combustible] && (
-              <p className="text-xs text-gray-500">
-                Máximo disponible: {(surtidorSeleccionado.combustibles[ventaData.tipo_combustible].stock / 3.78541).toFixed(2)} gal
-              </p>
-            )}
           </div>
 
           {/* Precio por Galón */}
@@ -312,9 +323,14 @@ function VentaCombustibleSimple() {
               name="precio_por_galon"
               value={ventaData.precio_por_galon}
               onChange={handleInputChange}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              readOnly
+              step="1"
+              min="0"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="0"
             />
+            <p className="text-xs text-blue-600 mt-1">
+              💡 Se llena automáticamente al seleccionar combustible, pero puedes editarlo
+            </p>
           </div>
 
           {/* Método de Pago */}

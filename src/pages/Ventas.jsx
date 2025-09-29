@@ -2,12 +2,20 @@ import React, { useState, useMemo } from 'react'
 import { useSupabaseGasStation as useGasStation } from '../context/SupabaseGasStationContext'
 
 function Ventas() {
-  const { ventas, surtidores, tienePermiso } = useGasStation()
+  const context = useGasStation()
+  const { ventas, surtidores, tienePermiso, eliminarVenta, actualizarVenta } = context
+  
+  // Debug: verificar contexto
+  console.log('Contexto completo:', context)
+  console.log('eliminarVenta disponible:', typeof eliminarVenta)
+  console.log('actualizarVenta disponible:', typeof actualizarVenta)
   
   const [filtroSurtidor, setFiltroSurtidor] = useState('')
   const [filtroCombustible, setFiltroCombustible] = useState('')
   const [filtroFecha, setFiltroFecha] = useState('')
   const [filtroBombero, setFiltroBombero] = useState('')
+  const [showModal, setShowModal] = useState(false)
+  const [ventaEditando, setVentaEditando] = useState(null)
 
   // Verificar permisos
   if (!tienePermiso('gestionar_ventas') && !tienePermiso('registrar_ventas') && !tienePermiso('ver_ventas')) {
@@ -22,6 +30,11 @@ function Ventas() {
       </div>
     )
   }
+
+  // Debug: verificar datos
+  console.log('Ventas cargadas:', ventas)
+  console.log('Usuario actual:', useGasStation().usuarioActual)
+  console.log('¿Tiene permiso gestionar_ventas?', tienePermiso('gestionar_ventas'))
 
   // Filtrar ventas
   const ventasFiltradas = useMemo(() => {
@@ -119,6 +132,48 @@ function Ventas() {
       acpm: 'bg-orange-100 text-orange-800'
     }
     return colors[tipo] || 'bg-gray-100 text-gray-800'
+  }
+
+  // Función para manejar la edición de ventas
+  const handleEdit = (venta) => {
+    console.log('Editando venta:', venta)
+    setVentaEditando(venta)
+    setShowModal(true)
+  }
+
+  // Función para manejar la eliminación de ventas
+  const handleDelete = async (ventaId) => {
+    console.log('Eliminando venta con ID:', ventaId)
+    console.log('Función eliminarVenta disponible:', typeof eliminarVenta)
+    
+    if (window.confirm('¿Estás seguro de que deseas eliminar esta venta? Esta acción no se puede deshacer.')) {
+      try {
+        if (!eliminarVenta) {
+          console.error('La función eliminarVenta no está disponible')
+          alert('Error: La función de eliminar no está disponible')
+          return
+        }
+        
+        console.log('Llamando a eliminarVenta...')
+        const resultado = await eliminarVenta(ventaId)
+        console.log('Resultado de eliminación:', resultado)
+        
+        if (resultado && resultado.success) {
+          alert('Venta eliminada exitosamente')
+        } else {
+          alert('Error al eliminar la venta: ' + (resultado?.message || 'Error desconocido'))
+        }
+      } catch (error) {
+        console.error('Error al eliminar venta:', error)
+        alert('Error al eliminar la venta. Por favor, inténtalo de nuevo.')
+      }
+    }
+  }
+
+  // Función para cerrar el modal
+  const handleCloseModal = () => {
+    setShowModal(false)
+    setVentaEditando(null)
   }
 
   return (
@@ -320,6 +375,9 @@ function Ventas() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Bombero
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Acciones
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -358,6 +416,38 @@ function Ventas() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
                       {venta.bomberoNombre || 'N/A'}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    {/* Debug: mostrar siempre los botones para probar */}
+                    <button
+                      onClick={() => {
+                        console.log('Botón Editar clickeado para venta:', venta);
+                        handleEdit(venta);
+                      }}
+                      className="text-yellow-600 hover:text-yellow-900 mr-4 flex items-center"
+                    >
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => {
+                        console.log('Botón Eliminar clickeado para venta ID:', venta.id);
+                        handleDelete(venta.id);
+                      }}
+                      className="text-red-600 hover:text-red-900 flex items-center"
+                    >
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      Eliminar
+                    </button>
+                    
+                    {/* Mostrar información de debug */}
+                    <div className="text-xs text-gray-500 mt-1">
+                      ID: {venta.id} | Permiso: {tienePermiso('gestionar_ventas') ? 'SÍ' : 'NO'}
                     </div>
                   </td>
                 </tr>

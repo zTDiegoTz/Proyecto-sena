@@ -76,12 +76,7 @@ function Surtidores() {
     const precioUnitario = parseFloat(ventaData.precioUnitario) || precioOriginal
     const total = cantidad * precioUnitario
 
-    // Verificar stock disponible
-    const stockDisponible = selectedSurtidor.combustibles[ventaData.combustible].stock
-    if (cantidad > stockDisponible) {
-      alert(`Stock insuficiente. Disponible: ${stockDisponible} galones`)
-      return
-    }
+    // Nota: No se valida stock ya que la aplicación no monitorea los tanques de los surtidores
 
     finalizarVenta(
       selectedSurtidor.id,
@@ -321,7 +316,7 @@ function Surtidores() {
                     {ventaData.cantidad ? `${ventaData.cantidad} gal` : 'Se calculará automáticamente'}
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    Stock disponible: {formatearCantidad(selectedSurtidor.combustibles[ventaData.combustible].stock)}
+                    {/* Stock no monitoreado por la aplicación */}
                   </p>
                 </div>
 

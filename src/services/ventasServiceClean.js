@@ -37,7 +37,6 @@ export const ventasServiceClean = {
         tipo_combustible: venta.tipo_combustible,
         cantidad: venta.cantidad_litros, // Para stock (litros)
         cantidad_galones: venta.cantidad_galones,
-        cantidad_litros: venta.cantidad_litros,
         precio_por_galon: venta.precio_por_galon,
         precio_unitario: precioUnitario, // Precio por litro
         
@@ -172,6 +171,21 @@ export const ventasServiceClean = {
       })
 
       return { success: true, data: estadisticas }
+    } catch (error) {
+      return handleSupabaseError(error)
+    }
+  },
+
+  // Eliminar venta
+  async eliminar(id) {
+    try {
+      const { error } = await supabase
+        .from('ventas')
+        .delete()
+        .eq('id', id)
+      
+      if (error) throw error
+      return { success: true, message: 'Venta eliminada exitosamente' }
     } catch (error) {
       return handleSupabaseError(error)
     }
