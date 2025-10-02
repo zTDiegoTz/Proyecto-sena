@@ -483,10 +483,13 @@ export function SupabaseGasStationProvider({ children }) {
 
   const actualizarPrecios = async (precios) => {
     try {
+      console.log('🔄 INICIANDO ACTUALIZACIÓN DE PRECIOS:', precios)
+      
       // Actualización optimista
       dispatch({ type: ACTIONS.ACTUALIZAR_PRECIOS, payload: precios })
       
       // Actualizar en configuracion_combustibles (nueva estructura)
+      console.log('📊 Actualizando configuracion_combustibles...')
       const { createClient } = await import('@supabase/supabase-js')
       const supabase = createClient(
         'https://adbzfiepkxtyqudwfysk.supabase.co',
@@ -495,6 +498,7 @@ export function SupabaseGasStationProvider({ children }) {
 
       // Actualizar cada precio en configuracion_combustibles
       for (const [tipo, precio] of Object.entries(precios)) {
+        console.log(`   🔄 Actualizando ${tipo} a $${precio} en configuracion_combustibles...`)
         const { error } = await supabase
           .from('configuracion_combustibles')
           .update({ 
@@ -504,18 +508,33 @@ export function SupabaseGasStationProvider({ children }) {
           .eq('tipo_combustible', tipo)
         
         if (error) {
+          console.error(`   ❌ Error actualizando ${tipo}:`, error)
           throw new Error(`Error actualizando ${tipo}: ${error.message}`)
+        } else {
+          console.log(`   ✅ ${tipo} actualizado en configuracion_combustibles`)
         }
       }
 
       // También actualizar en combustibles_surtidor para mantener compatibilidad
-      await surtidoresService.actualizarPrecios(precios)
+      console.log('⛽ Actualizando combustibles_surtidor...')
+      const resultadoSurtidores = await surtidoresService.actualizarPrecios(precios)
+      
+      if (resultadoSurtidores.success) {
+        console.log('✅ Precios actualizados en combustibles_surtidor')
+      } else {
+        console.error('❌ Error actualizando combustibles_surtidor:', resultadoSurtidores.message)
+        throw new Error(`Error en surtidores: ${resultadoSurtidores.message}`)
+      }
 
       // Recargar datos
-      cargarConfiguracion()
-      cargarSurtidores()
+      console.log('🔄 Recargando datos...')
+      await cargarConfiguracion()
+      await cargarSurtidores()
+      
+      console.log('🎉 ACTUALIZACIÓN DE PRECIOS COMPLETADA EXITOSAMENTE')
+      
     } catch (error) {
-      console.error('Error actualizando precios:', error)
+      console.error('❌ ERROR DURANTE ACTUALIZACIÓN DE PRECIOS:', error)
       dispatch({ type: ACTIONS.SET_ERROR, payload: error.message })
       cargarSurtidores()
       cargarConfiguracion()

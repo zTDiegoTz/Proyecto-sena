@@ -6,10 +6,21 @@ const Inventario = () => {
   const [editingPrecios, setEditingPrecios] = useState(false)
   const [editingStock, setEditingStock] = useState(null)
   const [nuevosPrecios, setNuevosPrecios] = useState({
-    extra: configuracion.precios?.extra || '',
-    corriente: configuracion.precios?.corriente || '',
-    acpm: configuracion.precios?.acpm || ''
+    extra: '',
+    corriente: '',
+    acpm: ''
   })
+
+  // Actualizar precios cuando la configuración cambie
+  React.useEffect(() => {
+    if (configuracion.precios) {
+      setNuevosPrecios({
+        extra: configuracion.precios.extra || '',
+        corriente: configuracion.precios.corriente || '',
+        acpm: configuracion.precios.acpm || ''
+      })
+    }
+  }, [configuracion.precios])
   const [nuevoStock, setNuevoStock] = useState('')
 
   // Verificar permisos
@@ -78,6 +89,7 @@ const Inventario = () => {
   }
 
   const cancelarEdicionPrecios = () => {
+    // Restablecer a los valores actuales de la configuración
     setNuevosPrecios({
       extra: configuracion.precios?.extra || '',
       corriente: configuracion.precios?.corriente || '',
