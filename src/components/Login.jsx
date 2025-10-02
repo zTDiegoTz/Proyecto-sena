@@ -36,10 +36,10 @@ function Login() {
         setError('')
         
         // Mostrar mensaje específico para bomberos
-        if (result.usuario.rol === 'bombero') {
+        if (result.usuario.role === 'bombero') {
           // Pequeño delay para que se vea el mensaje
           setTimeout(() => {
-            alert(`✅ ¡Bienvenido ${result.usuario.nombre}!\n\nTu turno se ha iniciado automáticamente.\n\nPuedes comenzar a registrar ventas.`)
+            alert(`✅ ¡Bienvenido ${result.usuario.name}!\n\nTu turno se ha iniciado automáticamente.\n\nPuedes comenzar a registrar ventas.`)
           }, 100)
         }
       } else {

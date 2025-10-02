@@ -149,11 +149,18 @@ const Reportes = () => {
     { nombre: 'ACPM', ventas: estadisticas.porCombustible.acpm.ventas, color: 'bg-yellow-500' }
   ]
 
-  const datosSurtidor = Object.keys(estadisticas.porSurtidor).map(surtidorId => ({
-    nombre: `Surtidor ${surtidorId}`,
-    ventas: estadisticas.porSurtidor[surtidorId].ventas,
-    color: 'bg-purple-500'
-  }))
+  const datosSurtidor = Object.keys(estadisticas.porSurtidor).map(surtidorId => {
+    // Buscar el nombre del surtidor
+    const surtidor = surtidores.find(s => s.id === surtidorId)
+    const nombreSurtidor = surtidor ? surtidor.nombre : `Surtidor ${surtidorId.substring(0, 8)}...`
+    
+    return {
+      id: surtidorId,
+      nombre: nombreSurtidor,
+      ventas: estadisticas.porSurtidor[surtidorId].ventas,
+      color: 'bg-purple-500'
+    }
+  })
 
   // Calcular maxVentas de forma segura
   const maxVentas = Math.max(
@@ -197,7 +204,9 @@ const Reportes = () => {
       }
     }
     
-    return `Surtidor ${maxSurtidor}`
+    // Buscar el nombre del surtidor más activo
+    const surtidor = surtidores.find(s => s.id === maxSurtidor)
+    return surtidor ? surtidor.nombre : `Surtidor ${maxSurtidor.substring(0, 8)}...`
   }
 
   return (
@@ -329,8 +338,8 @@ const Reportes = () => {
                   ></div>
                 </div>
                 <div className="text-xs text-gray-500">
-                  {formatVolume(estadisticas.porSurtidor[item.nombre.split(' ')[1]]?.cantidad || 0)} - 
-                  {formatCurrency(estadisticas.porSurtidor[item.nombre.split(' ')[1]]?.ingresos || 0)}
+                  {formatVolume(estadisticas.porSurtidor[item.id]?.cantidad || 0)} - 
+                  {formatCurrency(estadisticas.porSurtidor[item.id]?.ingresos || 0)}
                 </div>
               </div>
             ))}

@@ -14,8 +14,8 @@ function Turnos() {
   const [filtroBombero, setFiltroBombero] = useState('')
   const [filtroEstado, setFiltroEstado] = useState('todos')
 
-  // Verificar permisos
-  if (!tienePermiso('gestionar_turnos') && !tienePermiso('gestionar_turno_propio')) {
+  // Verificar permisos - Permitir acceso a admin, super_admin y bomberos
+  if (!tienePermiso('gestionar_turnos') && !tienePermiso('gestionar_turno_propio') && !tienePermiso('todos')) {
     return (
       <div className="text-center py-12">
         <div className="text-red-600 text-xl font-semibold">
@@ -33,37 +33,38 @@ function Turnos() {
     let filtrados = turnos
 
     // Si es bombero, solo ver sus propios turnos
-    if (usuarioActual?.rol === 'bombero') {
-      filtrados = turnos.filter(turno => turno.bomberoId === usuarioActual.id)
+    // Admin y super_admin pueden ver todos los turnos
+    if (usuarioActual?.role === 'bombero') {
+      filtrados = turnos.filter(turno => turno.bombero_id === usuarioActual.id)
     }
 
     // Aplicar filtros
     if (filtroBombero) {
       filtrados = filtrados.filter(turno => 
-        turno.bomberoNombre.toLowerCase().includes(filtroBombero.toLowerCase())
+        turno.bombero_nombre.toLowerCase().includes(filtroBombero.toLowerCase())
       )
     }
 
     if (filtroEstado !== 'todos') {
       filtrados = filtrados.filter(turno => 
-        filtroEstado === 'activos' ? turno.activo : !turno.activo
+        filtroEstado === 'activos' ? turno.estado === 'activo' : turno.estado === 'finalizado'
       )
     }
 
-    return filtrados.sort((a, b) => new Date(b.horaEntrada) - new Date(a.horaEntrada))
+    return filtrados.sort((a, b) => new Date(b.fecha_inicio) - new Date(a.fecha_inicio))
   }, [turnos, filtroBombero, filtroEstado, usuarioActual])
 
   // Obtener bomberos disponibles
-  const bomberos = usuarios.filter(usuario => usuario.rol === 'bombero' && usuario.activo)
+  const bomberos = usuarios.filter(usuario => usuario.role === 'bombero' && usuario.activo)
 
   // Verificar si el usuario actual tiene un turno activo
   const turnoActivo = turnos.find(turno => 
-    turno.bomberoId === usuarioActual?.id && turno.activo
+    turno.bombero_id === usuarioActual?.id && turno.estado === 'activo'
   )
 
   const handleIniciarTurno = () => {
     if (usuarioActual) {
-      iniciarTurno(usuarioActual.id, usuarioActual.nombre)
+      iniciarTurno(usuarioActual.id, usuarioActual.name)
     }
   }
 
@@ -95,11 +96,11 @@ function Turnos() {
   const getEstadisticas = () => {
     const hoy = new Date().toDateString()
     const turnosHoy = turnosFiltrados.filter(turno => 
-      new Date(turno.horaEntrada).toDateString() === hoy
+      new Date(turno.fecha_inicio).toDateString() === hoy
     )
     
-    const activos = turnosHoy.filter(turno => turno.activo).length
-    const completados = turnosHoy.filter(turno => !turno.activo).length
+    const activos = turnosHoy.filter(turno => turno.estado === 'activo').length
+    const completados = turnosHoy.filter(turno => turno.estado === 'finalizado').length
     
     return { activos, completados, total: turnosHoy.length }
   }
@@ -112,7 +113,7 @@ function Turnos() {
         <h1 className="text-2xl font-bold text-gray-900">Control de Turnos</h1>
         
         {/* Botón para iniciar/finalizar turno propio */}
-        {usuarioActual?.rol === 'bombero' && (
+        {usuarioActual?.role === 'bombero' && (
           <div className="flex space-x-3">
             {!turnoActivo ? (
               <button
@@ -129,6 +130,13 @@ function Turnos() {
                 Finalizar Turno
               </button>
             )}
+          </div>
+        )}
+        
+        {/* Información para admin y super_admin */}
+        {(usuarioActual?.role === 'administrador' || usuarioActual?.role === 'super_admin') && (
+          <div className="text-sm text-gray-600">
+            <p>Vista de administración - Todos los turnos</p>
           </div>
         )}
       </div>
@@ -248,12 +256,12 @@ function Turnos() {
                 <tr key={turno.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">
-                      {turno.bomberoNombre}
+                      {turno.bombero_nombre}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
-                      {formatearFecha(turno.horaEntrada)}
+                      {formatearFecha(turno.fecha_inicio)}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -263,20 +271,20 @@ function Turnos() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
-                      {calcularDuracion(turno.horaEntrada, turno.horaSalida)}
+                      {calcularDuracion(turno.fecha_inicio, turno.fecha_fin)}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      turno.activo 
+                      turno.estado === 'activo' 
                         ? 'bg-green-100 text-green-800' 
                         : 'bg-gray-100 text-gray-800'
                     }`}>
-                      {turno.activo ? 'Activo' : 'Completado'}
+                      {turno.estado === 'activo' ? 'Activo' : 'Completado'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    {turno.activo && (
+                    {turno.estado === 'activo' && (
                       <button
                         onClick={() => handleFinalizarTurno(turno.id)}
                         className="text-red-600 hover:text-red-900"

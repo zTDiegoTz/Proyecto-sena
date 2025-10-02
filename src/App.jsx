@@ -2,16 +2,14 @@ import React, { useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
 import Login from './components/Login'
+import AdminDashboard from './components/AdminDashboard'
 import Dashboard from './pages/Dashboard'
-import Surtidores from './pages/Surtidores'
 import Ventas from './pages/Ventas'
 import Turnos from './pages/Turnos'
 import Inventario from './pages/Inventario'
-import Precios from './pages/Precios'
 import Usuarios from './pages/Usuarios'
 import Reportes from './pages/Reportes'
-// import { GasStationProvider, useGasStation } from './context/GasStationContext'  // Versión localStorage
-import { SupabaseGasStationProvider as GasStationProvider, useSupabaseGasStation as useGasStation } from './context/SupabaseGasStationContext'  // ✅ Versión Supabase
+import { SupabaseGasStationProvider as GasStationProvider, useSupabaseGasStation as useGasStation } from './context/SupabaseGasStationContext'
 
 // Componente para proteger rutas
 function ProtectedRoute({ children }) {
@@ -74,8 +72,8 @@ function AppContent() {
                     </svg>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900">{usuarioActual.nombre}</p>
-                    <p className="text-xs text-gray-500 capitalize">{usuarioActual.rol.replace('_', ' ')}</p>
+                    <p className="text-sm font-medium text-gray-900">{usuarioActual.name}</p>
+                    <p className="text-xs text-gray-500 capitalize">{usuarioActual.role?.replace('_', ' ') || 'Usuario'}</p>
                   </div>
                 </div>
                 
@@ -104,9 +102,9 @@ function AppContent() {
                   <Dashboard />
                 </ProtectedRoute>
               } />
-              <Route path="/surtidores" element={
+              <Route path="/admin" element={
                 <ProtectedRoute>
-                  <Surtidores />
+                  <AdminDashboard />
                 </ProtectedRoute>
               } />
               <Route path="/ventas" element={
@@ -122,11 +120,6 @@ function AppContent() {
               <Route path="/inventario" element={
                 <ProtectedRoute>
                   <Inventario />
-                </ProtectedRoute>
-              } />
-              <Route path="/precios" element={
-                <ProtectedRoute>
-                  <Precios />
                 </ProtectedRoute>
               } />
               <Route path="/usuarios" element={

@@ -9,9 +9,14 @@ export const ventasServiceClean = {
       // Validar datos requeridos
       const datosRequeridos = [
         'surtidor_id', 'surtidor_nombre', 'bombero_id', 'bombero_nombre',
-        'tipo_combustible', 'cantidad_galones', 'cantidad_litros', 
+        'tipo_combustible', 'cantidad_galones', 'cantidad', 
         'precio_por_galon', 'valor_total'
       ]
+      
+      // Asegurar que precio_unitario esté calculado
+      if (!venta.precio_unitario && venta.cantidad > 0) {
+        venta.precio_unitario = parseFloat((venta.valor_total / venta.cantidad).toFixed(2))
+      }
       
       for (const campo of datosRequeridos) {
         if (!venta[campo] && venta[campo] !== 0) {
@@ -19,10 +24,10 @@ export const ventasServiceClean = {
         }
       }
 
-      // Calcular precio_unitario (precio por litro)
-      const precioUnitario = venta.cantidad_litros > 0 
-        ? venta.valor_total / venta.cantidad_litros 
-        : 0
+      // Usar precio_unitario calculado o calcularlo si no existe
+      const precioUnitario = venta.precio_unitario || (venta.cantidad > 0 
+        ? parseFloat((venta.valor_total / venta.cantidad).toFixed(2))
+        : 0)
 
       const ventaCompleta = {
         // Información del surtidor
@@ -35,7 +40,7 @@ export const ventasServiceClean = {
         
         // Información del combustible
         tipo_combustible: venta.tipo_combustible,
-        cantidad: venta.cantidad_litros, // Para stock (litros)
+        cantidad: venta.cantidad, // Para stock (litros)
         cantidad_galones: venta.cantidad_galones,
         precio_por_galon: venta.precio_por_galon,
         precio_unitario: precioUnitario, // Precio por litro

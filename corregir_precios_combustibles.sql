@@ -80,3 +80,5 @@ FROM combustibles_surtidor;
 SELECT '✅ Corrección de precios completada' as resultado;
 
 
+
+

@@ -5,10 +5,7 @@ function Ventas() {
   const context = useGasStation()
   const { ventas, surtidores, tienePermiso, eliminarVenta, actualizarVenta } = context
   
-  // Debug: verificar contexto
-  console.log('Contexto completo:', context)
-  console.log('eliminarVenta disponible:', typeof eliminarVenta)
-  console.log('actualizarVenta disponible:', typeof actualizarVenta)
+  // Debug: verificar contexto (removido para producción)
   
   const [filtroSurtidor, setFiltroSurtidor] = useState('')
   const [filtroCombustible, setFiltroCombustible] = useState('')
@@ -18,7 +15,7 @@ function Ventas() {
   const [ventaEditando, setVentaEditando] = useState(null)
 
   // Verificar permisos
-  if (!tienePermiso('gestionar_ventas') && !tienePermiso('registrar_ventas') && !tienePermiso('ver_ventas')) {
+  if (!tienePermiso('gestionar_ventas') && !tienePermiso('registrar_ventas') && !tienePermiso('ver_ventas') && context.usuarioActual?.role !== 'bombero') {
     return (
       <div className="text-center py-12">
         <div className="text-red-600 text-xl font-semibold">
@@ -31,10 +28,7 @@ function Ventas() {
     )
   }
 
-  // Debug: verificar datos
-  console.log('Ventas cargadas:', ventas)
-  console.log('Usuario actual:', useGasStation().usuarioActual)
-  console.log('¿Tiene permiso gestionar_ventas?', tienePermiso('gestionar_ventas'))
+  // Debug: verificar datos (removido para producción)
 
   // Filtrar ventas
   const ventasFiltradas = useMemo(() => {
@@ -136,6 +130,12 @@ function Ventas() {
 
   // Función para manejar la edición de ventas
   const handleEdit = (venta) => {
+    // Verificar permisos antes de permitir edición
+    if (!tienePermiso('gestionar_ventas')) {
+      alert('No tienes permisos para editar ventas')
+      return
+    }
+    
     console.log('Editando venta:', venta)
     setVentaEditando(venta)
     setShowModal(true)
@@ -143,6 +143,12 @@ function Ventas() {
 
   // Función para manejar la eliminación de ventas
   const handleDelete = async (ventaId) => {
+    // Verificar permisos antes de permitir eliminación
+    if (!tienePermiso('gestionar_ventas')) {
+      alert('No tienes permisos para eliminar ventas')
+      return
+    }
+    
     console.log('Eliminando venta con ID:', ventaId)
     console.log('Función eliminarVenta disponible:', typeof eliminarVenta)
     
@@ -181,10 +187,10 @@ function Ventas() {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900">Registro de Ventas</h1>
         
-        {/* Botón para ir a registrar ventas (solo para bomberos) */}
-        {tienePermiso('registrar_ventas') && (
+        {/* Botón para ir a registrar ventas (para bomberos y administradores) */}
+        {(tienePermiso('registrar_ventas') || context.usuarioActual?.role === 'bombero') && (
           <button
-            onClick={() => window.location.href = '/surtidores'}
+            onClick={() => window.location.href = '/admin'}
             className="btn-primary flex items-center"
           >
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -419,31 +425,39 @@ function Ventas() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    {/* Debug: mostrar siempre los botones para probar */}
-                    <button
-                      onClick={() => {
-                        console.log('Botón Editar clickeado para venta:', venta);
-                        handleEdit(venta);
-                      }}
-                      className="text-yellow-600 hover:text-yellow-900 mr-4 flex items-center"
-                    >
-                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => {
-                        console.log('Botón Eliminar clickeado para venta ID:', venta.id);
-                        handleDelete(venta.id);
-                      }}
-                      className="text-red-600 hover:text-red-900 flex items-center"
-                    >
-                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      Eliminar
-                    </button>
+                    {/* Mostrar botones de editar/eliminar solo si tiene permisos */}
+                    {tienePermiso('gestionar_ventas') && (
+                      <>
+                        <button
+                          onClick={() => {
+                            console.log('Botón Editar clickeado para venta:', venta);
+                            handleEdit(venta);
+                          }}
+                          className="text-yellow-600 hover:text-yellow-900 mr-4 flex items-center"
+                        >
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => {
+                            console.log('Botón Eliminar clickeado para venta ID:', venta.id);
+                            handleDelete(venta.id);
+                          }}
+                          className="text-red-600 hover:text-red-900 flex items-center"
+                        >
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                          Eliminar
+                        </button>
+                      </>
+                    )}
+                    {/* Para bomberos, mostrar solo información de solo lectura */}
+                    {!tienePermiso('gestionar_ventas') && context.usuarioActual?.role === 'bombero' && (
+                      <span className="text-gray-500 text-sm">Solo lectura</span>
+                    )}
                     
                     {/* Mostrar información de debug */}
                     <div className="text-xs text-gray-500 mt-1">

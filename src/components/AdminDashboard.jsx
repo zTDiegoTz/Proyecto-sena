@@ -1,91 +1,30 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { useSimpleSupabase } from '../context/SimpleSupabaseContextTemp.jsx'
+import { useSupabaseGasStation as useGasStation } from '../context/SupabaseGasStationContext'
 import { ventasServiceClean } from '../services/ventasServiceClean'
 import { usuariosService, surtidoresService, combustiblesService } from '../services/supabaseServiceFinal'
+import VentaCombustibleSimple from './VentaCombustibleSimple'
 
-// Componente de navegación lateral
-function AdminSidebar({ activeSection, setActiveSection, onLogout }) {
-  const { usuarioActual, tienePermiso } = useSimpleSupabase()
-
-  const menuItems = [
-    {
-      id: 'dashboard',
-      name: 'Dashboard',
-      icon: '📊',
-      visible: true
-    },
-    {
-      id: 'usuarios',
-      name: 'Gestión de Usuarios',
-      icon: '👥',
-      visible: tienePermiso('gestionar_usuarios') || usuarioActual.role === 'super_admin'
-    },
-    {
-      id: 'surtidores',
-      name: 'Gestión de Surtidores',
-      icon: '⛽',
-      visible: tienePermiso('gestionar_surtidores') || usuarioActual.role === 'super_admin'
-    },
-    {
-      id: 'ventas',
-      name: 'Control de Ventas',
-      icon: '💰',
-      visible: true
-    },
-    {
-      id: 'reportes',
-      name: 'Reportes',
-      icon: '📈',
-      visible: tienePermiso('ver_reportes') || usuarioActual.role === 'super_admin'
-    },
-    {
-      id: 'configuracion',
-      name: 'Configuración',
-      icon: '⚙️',
-      visible: usuarioActual.role === 'super_admin'
-    }
-  ]
+// Componente simplificado sin navegación duplicada
+function AdminHeader({ onLogout }) {
+  const { usuarioActual } = useGasStation()
 
   return (
-    <div className="w-64 bg-gray-800 text-white h-screen flex flex-col">
-      {/* Header */}
-      <div className="p-4 bg-gray-900">
-        <h2 className="text-xl font-bold">Panel de Control</h2>
-        <p className="text-sm text-gray-300">{usuarioActual.name}</p>
-        <span className="text-xs bg-blue-600 px-2 py-1 rounded">
-          {usuarioActual.role === 'super_admin' ? 'Super Admin' : 'Gerente'}
-        </span>
-      </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 p-4">
-        <ul className="space-y-2">
-          {menuItems.filter(item => item.visible).map((item) => (
-            <li key={item.id}>
-              <button
-                onClick={() => setActiveSection(item.id)}
-                className={`w-full text-left p-3 rounded-lg transition-colors duration-200 flex items-center space-x-3 ${
-                  activeSection === item.id
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                }`}
-              >
-                <span className="text-lg">{item.icon}</span>
-                <span>{item.name}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </nav>
-
-      {/* Logout */}
-      <div className="p-4 border-t border-gray-700">
+    <div className="bg-white shadow-sm border-b border-gray-200 p-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Panel de Administración</h1>
+          <p className="text-gray-600">
+            Bienvenido, {usuarioActual?.name || 'Usuario'} 
+            <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+              {usuarioActual?.role?.replace('_', ' ') || 'Usuario'}
+            </span>
+          </p>
+        </div>
         <button
           onClick={onLogout}
-          className="w-full bg-red-600 hover:bg-red-700 text-white p-3 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
+          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
         >
-          <span>🚪</span>
-          <span>Cerrar Sesión</span>
+          Cerrar Sesión
         </button>
       </div>
     </div>
@@ -635,227 +574,153 @@ function GestionUsuarios() {
 
 // Gestión de Surtidores
 function GestionSurtidores({ surtidores }) {
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [showConfigModal, setShowConfigModal] = useState(false)
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showGlobalConfigModal, setShowGlobalConfigModal] = useState(false)
-  const [editingSurtidor, setEditingSurtidor] = useState(null)
-  const [configurandoSurtidor, setConfigurandoSurtidor] = useState(null)
+  const { crearSurtidor, editarSurtidor, eliminarSurtidor, configurarCombustiblesSurtidor, actualizarPrecios, configuracion, tienePermiso } = useGasStation()
+  
+  const [showModalCrear, setShowModalCrear] = useState(false)
+  const [showModalEditar, setShowModalEditar] = useState(false)
+  const [showModalStock, setShowModalStock] = useState(false)
+  const [showModalPrecios, setShowModalPrecios] = useState(false)
+  const [selectedSurtidor, setSelectedSurtidor] = useState(null)
   const [surtidorData, setSurtidorData] = useState({
     nombre: '',
-    estado: 'disponible'
+    estado: 'disponible',
+    ubicacion: ''
   })
-  const [nuevoSurtidor, setNuevoSurtidor] = useState({
-    nombre: '',
-    estado: 'disponible'
+  const [stockData, setStockData] = useState({})
+  const [preciosData, setPreciosData] = useState({
+    extra: configuracion?.precios?.extra || 12500,
+    corriente: configuracion?.precios?.corriente || 11500,
+    acpm: configuracion?.precios?.acpm || 10500
   })
-  const [configuracionGlobal, setConfiguracionGlobal] = useState({
-    extra: { precio: 0, stock_total: 0, stock_disponible: 0 },
-    corriente: { precio: 0, stock_total: 0, stock_disponible: 0 },
-    acpm: { precio: 0, stock_total: 0, stock_disponible: 0 }
-  })
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
 
-  // Verificar si se puede agregar más surtidores
-  const puedeAgregarSurtidor = surtidores.length < 6
-
-  // Cargar configuración global al montar el componente
-  useEffect(() => {
-    cargarConfiguracionGlobal()
-  }, [])
-
-  const cargarConfiguracionGlobal = async () => {
-    try {
-      const resultado = await combustiblesService.obtenerConfiguracionGlobal()
-      if (resultado.success) {
-        setConfiguracionGlobal(resultado.data)
-      }
-    } catch (error) {
-      console.error('Error al cargar configuración global:', error)
-    }
-  }
-
-  // Función para abrir modal de crear surtidor
-  const handleCrearSurtidor = () => {
-    if (!puedeAgregarSurtidor) {
-      alert('No se pueden agregar más surtidores. Máximo permitido: 6')
+  const handleCrearSurtidor = async (e) => {
+    e.preventDefault()
+    
+    if (!surtidorData.nombre.trim()) {
+      alert('Por favor ingrese un nombre para el surtidor')
       return
     }
-    setNuevoSurtidor({
-      nombre: '',
-      estado: 'disponible'
-    })
-    setShowCreateModal(true)
-  }
 
-  // Función para abrir modal de configuración global
-  const handleConfiguracionGlobal = () => {
-    setShowGlobalConfigModal(true)
-  }
-
-  // Función para guardar configuración global
-  const handleGuardarConfiguracionGlobal = async (e) => {
-    e.preventDefault()
-    try {
-      setLoading(true)
-      setError('')
-      
-      const resultado = await combustiblesService.actualizarConfiguracionGlobal(configuracionGlobal)
-      
-      if (resultado.success) {
-        alert('Configuración global actualizada exitosamente')
-        setShowGlobalConfigModal(false)
-        // Recargar página para ver cambios
-        window.location.reload()
-      } else {
-        setError(resultado.message)
-      }
-    } catch (err) {
-      setError('Error al actualizar configuración global: ' + err.message)
-    } finally {
-      setLoading(false)
+    const resultado = await crearSurtidor(surtidorData)
+    if (resultado.success) {
+      alert('✅ Surtidor creado exitosamente!')
+      setShowModalCrear(false)
+      setSurtidorData({ nombre: '', estado: 'disponible', ubicacion: '' })
+    } else {
+      alert('❌ Error al crear surtidor: ' + resultado.message)
     }
   }
 
-  // Función para crear nuevo surtidor
-  const handleGuardarCreacion = async (e) => {
+  const handleEditarSurtidor = async (e) => {
     e.preventDefault()
-    try {
-      setLoading(true)
-      setError('')
-      
-      const resultado = await surtidoresService.crear(nuevoSurtidor)
-      
-      if (resultado.success) {
-        alert('Surtidor creado exitosamente')
-        setShowCreateModal(false)
-        setNuevoSurtidor({
-          nombre: '',
-          estado: 'disponible',
-          combustibles: {
-            extra: { precio: 0, stock: 0 },
-            corriente: { precio: 0, stock: 0 },
-            acpm: { precio: 0, stock: 0 }
-          }
-        })
-        // Recargar página para ver cambios
-        window.location.reload()
-      } else {
-        setError(resultado.message)
-      }
-    } catch (err) {
-      setError('Error al crear surtidor: ' + err.message)
-    } finally {
-      setLoading(false)
+    
+    if (!surtidorData.nombre.trim()) {
+      alert('Por favor ingrese un nombre para el surtidor')
+      return
+    }
+
+    const resultado = await editarSurtidor(selectedSurtidor.id, surtidorData)
+    if (resultado.success) {
+      alert('✅ Surtidor editado exitosamente!')
+      setShowModalEditar(false)
+      setSelectedSurtidor(null)
+      setSurtidorData({ nombre: '', estado: 'disponible', ubicacion: '' })
+    } else {
+      alert('❌ Error al editar surtidor: ' + resultado.message)
     }
   }
 
-  // Función para editar surtidor
-  const handleEdit = (surtidor) => {
-    console.log('Editando surtidor:', surtidor)
-    setEditingSurtidor(surtidor)
+  const handleEliminarSurtidor = async (surtidor) => {
+    if (!confirm(`¿Está seguro de que desea eliminar el surtidor "${surtidor.nombre}"?\n\nEsta acción no se puede deshacer.`)) {
+      return
+    }
+
+    const resultado = await eliminarSurtidor(surtidor.id)
+    if (resultado.success) {
+      alert('✅ Surtidor eliminado exitosamente!')
+    } else {
+      alert('❌ Error al eliminar surtidor: ' + resultado.message)
+    }
+  }
+
+  const handleConfigurarStock = (surtidor) => {
+    setSelectedSurtidor(surtidor)
+    setStockData(surtidor.combustibles)
+    setShowModalStock(true)
+  }
+
+  const handleGuardarStock = async (e) => {
+    e.preventDefault()
+    
+    const resultado = await configurarCombustiblesSurtidor(selectedSurtidor.id, stockData)
+    if (resultado.success) {
+      alert('✅ Stock configurado exitosamente!')
+      setShowModalStock(false)
+      setSelectedSurtidor(null)
+      setStockData({})
+    } else {
+      alert('❌ Error al configurar stock: ' + resultado.message)
+    }
+  }
+
+  const abrirModalEditar = (surtidor) => {
+    setSelectedSurtidor(surtidor)
     setSurtidorData({
       nombre: surtidor.nombre,
-      estado: surtidor.estado
+      estado: surtidor.estado,
+      ubicacion: surtidor.ubicacion || ''
     })
-    setShowEditModal(true)
+    setShowModalEditar(true)
   }
 
-  // Función para configurar surtidor
-  const handleConfigurar = (surtidor) => {
-    console.log('Configurando surtidor:', surtidor)
-    setConfigurandoSurtidor(surtidor)
-    setConfigData({
-      extra: {
-        precio: surtidor.combustibles?.extra?.precio || 0,
-        stock: surtidor.combustibles?.extra?.stock || 0
-      },
-      corriente: {
-        precio: surtidor.combustibles?.corriente?.precio || 0,
-        stock: surtidor.combustibles?.corriente?.stock || 0
-      },
-      acpm: {
-        precio: surtidor.combustibles?.acpm?.precio || 0,
-        stock: surtidor.combustibles?.acpm?.stock || 0
-      }
-    })
-    setShowConfigModal(true)
-  }
-
-  // Guardar cambios del surtidor editado
-  const handleGuardarEdicion = async (e) => {
+  const handleActualizarPrecios = async (e) => {
     e.preventDefault()
-    try {
-      setLoading(true)
-      setError('')
-      
-      const resultado = await surtidoresService.actualizarEstado(editingSurtidor.id, surtidorData.estado)
-      
-      if (resultado.success) {
-        alert('Surtidor actualizado exitosamente')
-        setShowEditModal(false)
-        setEditingSurtidor(null)
-        // Recargar página para ver cambios
-        window.location.reload()
-      } else {
-        setError(resultado.message)
-      }
-    } catch (err) {
-      setError('Error al actualizar surtidor: ' + err.message)
-    } finally {
-      setLoading(false)
+    
+    if (preciosData.extra <= 0 || preciosData.corriente <= 0 || preciosData.acpm <= 0) {
+      alert('Por favor ingrese precios válidos (mayores a 0)')
+      return
+    }
+
+    const resultado = await actualizarPrecios(preciosData)
+    if (resultado.success) {
+      alert('✅ Precios actualizados exitosamente!\n\nLos nuevos precios se han aplicado a todos los surtidores.')
+      setShowModalPrecios(false)
+    } else {
+      alert('❌ Error al actualizar precios: ' + resultado.message)
     }
   }
 
-  // Guardar configuración del surtidor
-  const handleGuardarConfiguracion = async (e) => {
-    e.preventDefault()
-    try {
-      setLoading(true)
-      setError('')
-      
-      // Actualizar precios
-      const precios = {
-        extra: configData.extra.precio,
-        corriente: configData.corriente.precio,
-        acpm: configData.acpm.precio
-      }
-      
-      const resultadoPrecios = await surtidoresService.actualizarPrecios(precios)
-      
-      if (resultadoPrecios.success) {
-        // Actualizar stock para cada combustible
-        const actualizacionesStock = []
-        
-        for (const [tipo, data] of Object.entries(configData)) {
-          actualizacionesStock.push(
-            surtidoresService.establecerStock(configurandoSurtidor.id, tipo, data.stock)
-          )
-        }
-        
-        const resultadosStock = await Promise.all(actualizacionesStock)
-        const todosExitosos = resultadosStock.every(r => r.success)
-        
-        if (todosExitosos) {
-          alert('Configuración del surtidor guardada exitosamente')
-          setShowConfigModal(false)
-          setConfigurandoSurtidor(null)
-          // Recargar página para ver cambios
-          window.location.reload()
-        } else {
-          setError('Error al actualizar algunos stocks')
-        }
-      } else {
-        setError(resultadoPrecios.message)
-      }
-    } catch (err) {
-      setError('Error al guardar configuración: ' + err.message)
-    } finally {
-      setLoading(false)
-    }
+  const formatearMoneda = (valor) => {
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(valor)
   }
 
+  const formatearCantidad = (cantidad) => {
+    return `${cantidad.toFixed(2)} gal`
+  }
+
+  const getEstadoColor = (estado) => {
+    const colors = {
+      disponible: 'bg-green-100 text-green-800',
+      ocupado: 'bg-yellow-100 text-yellow-800',
+      mantenimiento: 'bg-red-100 text-red-800'
+    }
+    return colors[estado] || 'bg-gray-100 text-gray-800'
+  }
+
+  const getEstadoLabel = (estado) => {
+    const labels = {
+      disponible: 'Disponible',
+      ocupado: 'Ocupado',
+      mantenimiento: 'Mantenimiento'
+    }
+    return labels[estado] || estado
+  }
+  
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -865,396 +730,496 @@ function GestionSurtidores({ surtidores }) {
             Surtidores activos: {surtidores.length}/6
           </p>
         </div>
-        <div className="flex space-x-3">
-          <button
-            onClick={handleCrearSurtidor}
-            disabled={!puedeAgregarSurtidor}
-            className={`px-4 py-2 rounded-lg text-white ${
-              puedeAgregarSurtidor
-                ? 'bg-green-600 hover:bg-green-700'
-                : 'bg-gray-400 cursor-not-allowed'
-            }`}
-          >
-            ➕ Agregar Surtidor
-          </button>
-          <button 
-            onClick={handleConfiguracionGlobal}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
-          >
-            ⚙️ Configurar Precios Globales
-          </button>
+      </div>
+
+      <div className="bg-white p-6 rounded-lg shadow">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+          <div className="flex items-start">
+            <svg className="w-6 h-6 text-blue-600 mt-1 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <h3 className="text-lg font-semibold text-blue-900 mb-2">Gestión Centralizada de Surtidores</h3>
+              <p className="text-blue-800 mb-4">
+                La gestión completa de surtidores se realiza directamente desde este panel para mantener una interfaz consistente y centralizada.
+                <br/><br/>
+                <strong>Nota:</strong> Tanto la gestión de surtidores como los precios de combustibles se manejan desde este mismo panel.
+              </p>
+              <div className="space-y-3">
+                <div className="flex items-center text-sm text-blue-700">
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Crear, editar y configurar surtidores
+                </div>
+                <div className="flex items-center text-sm text-blue-700">
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Gestionar precios y stocks de combustibles
+                </div>
+                <div className="flex items-center text-sm text-blue-700">
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Controlar estados y disponibilidad
+                </div>
+                <div className="flex items-center text-sm text-blue-700">
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Registrar ventas y transacciones
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          {error}
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Grid de surtidores */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {surtidores.map((surtidor) => (
-          <div key={surtidor.id} className="bg-white p-6 rounded-lg shadow">
-            <div className="flex justify-between items-center mb-4">
+          <div key={surtidor.id} className="card">
+            <div className="flex justify-between items-start mb-4">
               <h3 className="text-lg font-semibold text-gray-900">{surtidor.nombre}</h3>
-              <div className="flex space-x-2">
-                <button 
-                  onClick={() => handleEdit(surtidor)}
-                  className="text-blue-600 hover:text-blue-800"
-                >
-                  ✏️ Editar
-                </button>
-                <button 
-                  onClick={() => handleConfigurar(surtidor)}
-                  className="text-green-600 hover:text-green-800"
-                >
-                  ⚙️ Configurar
-                </button>
-              </div>
+              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEstadoColor(surtidor.estado)}`}>
+                {getEstadoLabel(surtidor.estado)}
+              </span>
             </div>
 
-            <div className="space-y-3">
-              <div>
-                <label className="text-sm font-medium text-gray-600">Estado:</label>
-                <select 
-                  className="ml-2 text-sm border rounded px-2 py-1"
-                  value={surtidor.estado}
-                  onChange={(e) => {
-                    // Aquí puedes agregar la lógica para actualizar el estado
-                    console.log('Estado cambiado a:', e.target.value)
-                  }}
-                >
-                  <option value="disponible">Disponible</option>
-                  <option value="ocupado">Ocupado</option>
-                  <option value="mantenimiento">Mantenimiento</option>
-                  <option value="fuera_servicio">Fuera de Servicio</option>
-                </select>
-              </div>
-
-              {Object.entries(surtidor.combustibles || {}).map(([tipo, datos]) => (
-                <div key={tipo} className="border-t pt-2">
-                  <div className="font-medium text-gray-700 capitalize mb-1">{tipo}</div>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <label className="text-gray-600">Precio:</label>
-                      <input 
-                        type="number" 
-                        defaultValue={datos.precio}
-                        className="w-full border rounded px-2 py-1 mt-1"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-gray-600">Stock (L):</label>
-                      <input 
-                        type="number" 
-                        defaultValue={datos.stock}
-                        className="w-full border rounded px-2 py-1 mt-1"
-                      />
-                    </div>
+            {/* Información de combustibles */}
+            <div className="space-y-3 mb-4">
+              {Object.entries(surtidor.combustibles).map(([tipo, info]) => (
+                <div key={tipo} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900 capitalize">{tipo}</p>
+                    <p className="text-xs text-gray-500">
+                      Stock: {formatearCantidad(info.stock)}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-gray-900">
+                      {formatearMoneda(info.precio)}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Vendido: {formatearCantidad(info.vendido)}
+                    </p>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="mt-4 flex space-x-2">
-              <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded">
-                💾 Guardar
-              </button>
-              <button className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 rounded">
-                🔄 Resetear
-              </button>
+            {/* Acciones */}
+            <div className="space-y-2">
+              {tienePermiso('gestionar_surtidores') && (
+                <div className="flex space-x-1">
+                  <button
+                    onClick={() => setShowModalCrear(true)}
+                    className="flex-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 transition-colors"
+                    title="Crear surtidor"
+                  >
+                    <svg className="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => setShowModalPrecios(true)}
+                    className="flex-1 px-2 py-1 bg-green-100 text-green-700 rounded text-xs hover:bg-green-200 transition-colors"
+                    title="Gestionar precios"
+                  >
+                    <svg className="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => abrirModalEditar(surtidor)}
+                    className="flex-1 px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs hover:bg-yellow-200 transition-colors"
+                    title="Editar surtidor"
+                  >
+                    <svg className="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => handleConfigurarStock(surtidor)}
+                    className="flex-1 px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs hover:bg-purple-200 transition-colors"
+                    title="Configurar stock"
+                  >
+                    <svg className="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => handleEliminarSurtidor(surtidor)}
+                    className="flex-1 px-2 py-1 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200 transition-colors"
+                    title="Eliminar surtidor"
+                  >
+                    <svg className="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         ))}
       </div>
 
-      {/* Modal de Edición de Surtidor */}
-      {showEditModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Editar Surtidor</h2>
-            <form onSubmit={handleGuardarEdicion}>
-              <div className="space-y-4">
+      {/* Modal para crear surtidor */}
+      {showModalCrear && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Crear Nuevo Surtidor
+              </h3>
+              
+              <form onSubmit={handleCrearSurtidor} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Nombre del Surtidor
                   </label>
                   <input
                     type="text"
+                    required
+                    className="input-field"
                     value={surtidorData.nombre}
                     onChange={(e) => setSurtidorData({...surtidorData, nombre: e.target.value})}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2"
-                    required
+                    placeholder="Ej: Surtidor 5"
                   />
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Estado
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Estado Inicial
                   </label>
                   <select
+                    className="input-field"
                     value={surtidorData.estado}
                     onChange={(e) => setSurtidorData({...surtidorData, estado: e.target.value})}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2"
                   >
                     <option value="disponible">Disponible</option>
                     <option value="ocupado">Ocupado</option>
                     <option value="mantenimiento">Mantenimiento</option>
-                    <option value="fuera_servicio">Fuera de Servicio</option>
                   </select>
                 </div>
-              </div>
-              
-              <div className="flex space-x-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setShowEditModal(false)}
-                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 rounded"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded disabled:opacity-50"
-                >
-                  {loading ? 'Guardando...' : 'Guardar'}
-                </button>
-              </div>
-            </form>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Ubicación (Opcional)
+                  </label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={surtidorData.ubicacion}
+                    onChange={(e) => setSurtidorData({...surtidorData, ubicacion: e.target.value})}
+                    placeholder="Ej: Zona Norte"
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowModalCrear(false)
+                      setSurtidorData({ nombre: '', estado: 'disponible', ubicacion: '' })
+                    }}
+                    className="btn-secondary"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                  >
+                    Crear Surtidor
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Modal de Configuración de Surtidor */}
-      {showConfigModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4">
-              Configurar {configurandoSurtidor?.nombre}
-            </h2>
-            <form onSubmit={handleGuardarConfiguracion}>
-              <div className="space-y-6">
-                {Object.entries(configData).map(([tipo, data]) => (
-                  <div key={tipo} className="border border-gray-200 rounded-lg p-4">
-                    <h3 className="text-lg font-semibold text-gray-800 capitalize mb-3">
-                      {tipo}
-                    </h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Precio por Litro ($)
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={data.precio}
-                          onChange={(e) => setConfigData({
-                            ...configData,
-                            [tipo]: {...data, precio: parseFloat(e.target.value) || 0}
-                          })}
-                          className="w-full border border-gray-300 rounded-md px-3 py-2"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Stock (Litros)
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={data.stock}
-                          onChange={(e) => setConfigData({
-                            ...configData,
-                            [tipo]: {...data, stock: parseFloat(e.target.value) || 0}
-                          })}
-                          className="w-full border border-gray-300 rounded-md px-3 py-2"
-                          required
-                        />
+      {/* Modal para editar surtidor */}
+      {showModalEditar && selectedSurtidor && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Editar Surtidor - {selectedSurtidor.nombre}
+              </h3>
+              
+              <form onSubmit={handleEditarSurtidor} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Nombre del Surtidor
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    className="input-field"
+                    value={surtidorData.nombre}
+                    onChange={(e) => setSurtidorData({...surtidorData, nombre: e.target.value})}
+                    placeholder="Ej: Surtidor 5"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Estado
+                  </label>
+                  <select
+                    className="input-field"
+                    value={surtidorData.estado}
+                    onChange={(e) => setSurtidorData({...surtidorData, estado: e.target.value})}
+                  >
+                    <option value="disponible">Disponible</option>
+                    <option value="ocupado">Ocupado</option>
+                    <option value="mantenimiento">Mantenimiento</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Ubicación (Opcional)
+                  </label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={surtidorData.ubicacion}
+                    onChange={(e) => setSurtidorData({...surtidorData, ubicacion: e.target.value})}
+                    placeholder="Ej: Zona Norte"
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowModalEditar(false)
+                      setSelectedSurtidor(null)
+                      setSurtidorData({ nombre: '', estado: 'disponible', ubicacion: '' })
+                    }}
+                    className="btn-secondary"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                  >
+                    Guardar Cambios
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para configurar stock */}
+      {showModalStock && selectedSurtidor && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-10 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Configurar Stock - {selectedSurtidor.nombre}
+              </h3>
+              
+              <form onSubmit={handleGuardarStock} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {Object.entries(stockData).map(([tipo, datos]) => (
+                    <div key={tipo} className="bg-gray-50 p-4 rounded-lg">
+                      <h4 className="font-medium text-gray-900 capitalize mb-3">{tipo}</h4>
+                      
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Precio
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            className="input-field text-sm"
+                            value={datos.precio}
+                            onChange={(e) => setStockData({
+                              ...stockData,
+                              [tipo]: { ...datos, precio: parseFloat(e.target.value) }
+                            })}
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Stock (galones)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            className="input-field text-sm"
+                            value={datos.stock}
+                            onChange={(e) => setStockData({
+                              ...stockData,
+                              [tipo]: { ...datos, stock: parseFloat(e.target.value) }
+                            })}
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Capacidad Máxima (galones)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            className="input-field text-sm"
+                            value={datos.capacidad_maxima}
+                            onChange={(e) => setStockData({
+                              ...stockData,
+                              [tipo]: { ...datos, capacidad_maxima: parseFloat(e.target.value) }
+                            })}
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-              
-              <div className="flex space-x-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setShowConfigModal(false)}
-                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 rounded"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded disabled:opacity-50"
-                >
-                  {loading ? 'Guardando...' : 'Guardar Configuración'}
-                </button>
-              </div>
-            </form>
+                  ))}
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowModalStock(false)
+                      setSelectedSurtidor(null)
+                      setStockData({})
+                    }}
+                    className="btn-secondary"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                  >
+                    Guardar Configuración
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Modal de Creación de Surtidor */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4">Crear Nuevo Surtidor</h2>
-            <form onSubmit={handleGuardarCreacion}>
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Nombre del Surtidor *
-                    </label>
-                    <input
-                      type="text"
-                      value={nuevoSurtidor.nombre}
-                      onChange={(e) => setNuevoSurtidor({...nuevoSurtidor, nombre: e.target.value})}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2"
-                      placeholder="Ej: Surtidor 3"
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Estado Inicial
-                    </label>
-                    <select
-                      value={nuevoSurtidor.estado}
-                      onChange={(e) => setNuevoSurtidor({...nuevoSurtidor, estado: e.target.value})}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2"
-                    >
-                      <option value="disponible">Disponible</option>
-                      <option value="mantenimiento">Mantenimiento</option>
-                      <option value="fuera_servicio">Fuera de Servicio</option>
-                    </select>
+      {/* Modal para gestionar precios */}
+      {showModalPrecios && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Gestionar Precios de Combustibles
+              </h3>
+              
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Importante:</strong> Los cambios se aplicarán a todos los surtidores inmediatamente.
+                </p>
+              </div>
+              
+              <form onSubmit={handleActualizarPrecios} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Precio Extra ($)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    required
+                    className="input-field"
+                    value={preciosData.extra}
+                    onChange={(e) => setPreciosData({...preciosData, extra: parseFloat(e.target.value)})}
+                    placeholder="Ej: 12500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Precio Corriente ($)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    required
+                    className="input-field"
+                    value={preciosData.corriente}
+                    onChange={(e) => setPreciosData({...preciosData, corriente: parseFloat(e.target.value)})}
+                    placeholder="Ej: 11500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Precio ACPM ($)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    required
+                    className="input-field"
+                    value={preciosData.acpm}
+                    onChange={(e) => setPreciosData({...preciosData, acpm: parseFloat(e.target.value)})}
+                    placeholder="Ej: 10500"
+                  />
+                </div>
+
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-2">Resumen de cambios:</p>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span>Extra:</span>
+                      <span className="font-medium">${preciosData.extra.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Corriente:</span>
+                      <span className="font-medium">${preciosData.corriente.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>ACPM:</span>
+                      <span className="font-medium">${preciosData.acpm.toLocaleString()}</span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-center">
-                    <div className="text-blue-600 mr-2">ℹ️</div>
-                    <div className="text-sm text-blue-800">
-                      <strong>Nota:</strong> Los precios y stocks de combustibles son globales para todos los surtidores. 
-                      Puedes configurarlos usando el botón "Configurar Precios Globales".
-                    </div>
-                  </div>
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowModalPrecios(false)
+                      setPreciosData({
+                        extra: configuracion?.precios?.extra || 12500,
+                        corriente: configuracion?.precios?.corriente || 11500,
+                        acpm: configuracion?.precios?.acpm || 10500
+                      })
+                    }}
+                    className="btn-secondary"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                  >
+                    Actualizar Precios
+                  </button>
                 </div>
-              </div>
-              
-              <div className="flex space-x-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 rounded"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded disabled:opacity-50"
-                >
-                  {loading ? 'Creando...' : 'Crear Surtidor'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Configuración Global de Combustibles */}
-      {showGlobalConfigModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4">Configuración Global de Combustibles</h2>
-            <p className="text-sm text-gray-600 mb-6">
-              Los precios y stocks configurados aquí se aplicarán a todos los surtidores de la estación.
-            </p>
-            <form onSubmit={handleGuardarConfiguracionGlobal}>
-              <div className="space-y-6">
-                {Object.entries(configuracionGlobal).map(([tipo, data]) => (
-                  <div key={tipo} className="border border-gray-200 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-800 capitalize mb-4">
-                      {tipo}
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Precio por Litro ($)
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={data.precio}
-                          onChange={(e) => setConfiguracionGlobal({
-                            ...configuracionGlobal,
-                            [tipo]: {...data, precio: parseFloat(e.target.value) || 0}
-                          })}
-                          className="w-full border border-gray-300 rounded-md px-3 py-2"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Stock Total (Litros)
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={data.stock_total}
-                          onChange={(e) => setConfiguracionGlobal({
-                            ...configuracionGlobal,
-                            [tipo]: {...data, stock_total: parseFloat(e.target.value) || 0}
-                          })}
-                          className="w-full border border-gray-300 rounded-md px-3 py-2"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Stock Disponible (Litros)
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={data.stock_disponible}
-                          onChange={(e) => setConfiguracionGlobal({
-                            ...configuracionGlobal,
-                            [tipo]: {...data, stock_disponible: parseFloat(e.target.value) || 0}
-                          })}
-                          className="w-full border border-gray-300 rounded-md px-3 py-2"
-                          required
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              
-              <div className="flex space-x-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setShowGlobalConfigModal(false)}
-                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 rounded"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded disabled:opacity-50"
-                >
-                  {loading ? 'Guardando...' : 'Guardar Configuración Global'}
-                </button>
-              </div>
-            </form>
+              </form>
+            </div>
           </div>
         </div>
       )}
@@ -1908,11 +1873,6 @@ function ConfiguracionSistema() {
       ruc: "12345678-9",
       direccion: "Av. Principal #123"
     },
-    precios: {
-      extra: 12500,
-      corriente: 12000,
-      acpm: 11000
-    },
     seguridad: {
       confirmacionVentas: true,
       backupAutomatico: true,
@@ -1932,46 +1892,34 @@ function ConfiguracionSistema() {
     setMessage('')
     
     try {
-      // Actualizar precios globales en la base de datos
+      // Solo actualizar configuración de estación y seguridad
+      // Los precios se gestionan desde la página de Precios
       const { configuracionService } = await import('../services/supabaseServiceFinal')
       
-      // Actualizar configuración de combustibles
-      const preciosActualizados = {
-        extra: {
-          precio_por_litro: configData.precios.extra,
-          activo: true,
-          fecha_actualizacion: new Date().toISOString()
-        },
-        corriente: {
-          precio_por_litro: configData.precios.corriente,
-          activo: true,
-          fecha_actualizacion: new Date().toISOString()
-        },
-        acpm: {
-          precio_por_litro: configData.precios.acpm,
-          activo: true,
-          fecha_actualizacion: new Date().toISOString()
-        }
+      // Actualizar configuración de estación
+      const configuracionEstacion = {
+        nombre_estacion: configData.estacion.nombre,
+        ruc: configData.estacion.ruc,
+        direccion: configData.estacion.direccion,
+        fecha_actualizacion: new Date().toISOString()
       }
       
-      // Actualizar cada tipo de combustible
-      for (const [tipo, data] of Object.entries(preciosActualizados)) {
-        const resultado = await configuracionService.actualizar(tipo, data)
-        if (!resultado.success) {
-          throw new Error(`Error actualizando ${tipo}: ${resultado.message}`)
-        }
+      const resultadoEstacion = await configuracionService.actualizar('estacion', configuracionEstacion)
+      if (!resultadoEstacion.success) {
+        throw new Error(`Error actualizando configuración de estación: ${resultadoEstacion.message}`)
       }
       
-      // Actualizar precios en todos los surtidores
-      const { surtidoresService } = await import('../services/supabaseServiceFinal')
-      const resultadoPrecios = await surtidoresService.actualizarPrecios({
-        extra: configData.precios.extra,
-        corriente: configData.precios.corriente,
-        acpm: configData.precios.acpm
-      })
+      // Actualizar configuración de seguridad
+      const configuracionSeguridad = {
+        confirmacion_ventas: configData.seguridad.confirmacionVentas,
+        backup_automatico: configData.seguridad.backupAutomatico,
+        notificaciones_email: configData.seguridad.notificacionesEmail,
+        fecha_actualizacion: new Date().toISOString()
+      }
       
-      if (!resultadoPrecios.success) {
-        throw new Error(`Error actualizando precios en surtidores: ${resultadoPrecios.message}`)
+      const resultadoSeguridad = await configuracionService.actualizar('seguridad', configuracionSeguridad)
+      if (!resultadoSeguridad.success) {
+        throw new Error(`Error actualizando configuración de seguridad: ${resultadoSeguridad.message}`)
       }
       
       setMessage('✅ Configuración guardada exitosamente')
@@ -2074,54 +2022,221 @@ function ConfiguracionSistema() {
           
           <div className="bg-white p-6 rounded-lg shadow">
             <h3 className="text-lg font-semibold mb-4">💰 Configuración de Precios</h3>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start">
+                <svg className="w-5 h-5 text-blue-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <p className="text-sm text-blue-800 font-medium">Gestión de Precios Centralizada</p>
+                  <p className="text-sm text-blue-700 mt-1">
+                    Los precios de combustibles se gestionan desde la página dedicada de <strong>Precios</strong> 
+                    para evitar duplicación y mantener consistencia en el sistema.
+                  </p>
+                  <div className="mt-2">
+                    <a 
+                      href="/precios" 
+                      className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                      Ir a Gestión de Precios
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="text-lg font-semibold mb-4">🏢 Configuración de Estación</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Gasolina Extra (por litro)</label>
+                <label className="block text-sm font-medium text-gray-700">Nombre de la Estación</label>
                 <input 
                   type="text" 
-                  value={configData.precios.extra}
+                  value={configData.estacion.nombre}
                   onChange={(e) => {
-                    const value = e.target.value.replace(/[^0-9]/g, '') // Solo números
                     setConfigData({
                       ...configData,
-                      precios: { ...configData.precios, extra: value === '' ? 0 : parseInt(value) }
+                      estacion: { ...configData.estacion, nombre: e.target.value }
                     })
                   }}
                   className="mt-1 block w-full border rounded-md px-3 py-2" 
-                  placeholder="Ingrese el precio"
+                  placeholder="Nombre de la estación"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Gasolina Corriente (por litro)</label>
+                <label className="block text-sm font-medium text-gray-700">RUC</label>
                 <input 
                   type="text" 
-                  value={configData.precios.corriente}
+                  value={configData.estacion.ruc}
                   onChange={(e) => {
-                    const value = e.target.value.replace(/[^0-9]/g, '') // Solo números
                     setConfigData({
                       ...configData,
-                      precios: { ...configData.precios, corriente: value === '' ? 0 : parseInt(value) }
+                      estacion: { ...configData.estacion, ruc: e.target.value }
                     })
                   }}
                   className="mt-1 block w-full border rounded-md px-3 py-2" 
-                  placeholder="Ingrese el precio"
+                  placeholder="RUC de la estación"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">ACPM (por litro)</label>
+                <label className="block text-sm font-medium text-gray-700">Dirección</label>
                 <input 
                   type="text" 
-                  value={configData.precios.acpm}
+                  value={configData.estacion.direccion}
                   onChange={(e) => {
-                    const value = e.target.value.replace(/[^0-9]/g, '') // Solo números
                     setConfigData({
                       ...configData,
-                      precios: { ...configData.precios, acpm: value === '' ? 0 : parseInt(value) }
+                      estacion: { ...configData.estacion, direccion: e.target.value }
                     })
                   }}
                   className="mt-1 block w-full border rounded-md px-3 py-2" 
-                  placeholder="Ingrese el precio"
+                  placeholder="Dirección de la estación"
                 />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="text-lg font-semibold mb-4">🔒 Configuración de Seguridad</h3>
+            <div className="space-y-4">
+              <div className="flex items-center">
+                <input 
+                  type="checkbox" 
+                  id="confirmacionVentas"
+                  checked={configData.seguridad.confirmacionVentas}
+                  onChange={(e) => {
+                    setConfigData({
+                      ...configData,
+                      seguridad: { ...configData.seguridad, confirmacionVentas: e.target.checked }
+                    })
+                  }}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="confirmacionVentas" className="ml-2 block text-sm text-gray-700">
+                  Confirmación obligatoria para ventas
+                </label>
+              </div>
+              <div className="flex items-center">
+                <input 
+                  type="checkbox" 
+                  id="backupAutomatico"
+                  checked={configData.seguridad.backupAutomatico}
+                  onChange={(e) => {
+                    setConfigData({
+                      ...configData,
+                      seguridad: { ...configData.seguridad, backupAutomatico: e.target.checked }
+                    })
+                  }}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="backupAutomatico" className="ml-2 block text-sm text-gray-700">
+                  Respaldo automático de datos
+                </label>
+              </div>
+              <div className="flex items-center">
+                <input 
+                  type="checkbox" 
+                  id="notificacionesEmail"
+                  checked={configData.seguridad.notificacionesEmail}
+                  onChange={(e) => {
+                    setConfigData({
+                      ...configData,
+                      seguridad: { ...configData.seguridad, notificacionesEmail: e.target.checked }
+                    })
+                  }}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="notificacionesEmail" className="ml-2 block text-sm text-gray-700">
+                  Notificaciones por email
+                </label>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="text-lg font-semibold mb-4">⚙️ Gestión de Surtidores</h3>
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-start">
+                <svg className="w-5 h-5 text-green-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <p className="text-sm text-green-800 font-medium">Gestión de Surtidores Centralizada</p>
+                  <p className="text-sm text-green-700 mt-1">
+                    La gestión completa de surtidores se realiza desde la página dedicada de <strong>Surtidores</strong> 
+                    para mantener una interfaz consistente y evitar duplicación de funcionalidades.
+                  </p>
+                  <div className="mt-2">
+                    <a 
+                      href="/surtidores" 
+                      className="inline-flex items-center text-sm text-green-600 hover:text-green-800 font-medium"
+                    >
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                      Ir a Gestión de Surtidores
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="text-lg font-semibold mb-4">📊 Resumen del Sistema</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h4 className="font-medium text-blue-900">Funcionalidades Centralizadas</h4>
+                <ul className="text-sm text-blue-700 mt-2 space-y-1">
+                  <li>• Gestión de Precios → Página Precios</li>
+                  <li>• Gestión de Surtidores → Página Surtidores</li>
+                  <li>• Gestión de Usuarios → Dashboard Admin</li>
+                  <li>• Reportes y Estadísticas → Dashboard Admin</li>
+                </ul>
+              </div>
+              <div className="bg-green-50 p-4 rounded-lg">
+                <h4 className="font-medium text-green-900">Configuración del Sistema</h4>
+                <ul className="text-sm text-green-700 mt-2 space-y-1">
+                  <li>• Información de la Estación</li>
+                  <li>• Configuración de Seguridad</li>
+                  <li>• Parámetros del Sistema</li>
+                  <li>• Configuración de Backup</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="text-lg font-semibold mb-4">💾 Guardar Configuración</h3>
+            <div className="space-y-4">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex items-start">
+                  <svg className="w-5 h-5 text-yellow-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                  <div>
+                    <p className="text-sm text-yellow-800 font-medium">Importante:</p>
+                    <p className="text-sm text-yellow-700 mt-1">
+                      Esta configuración solo afecta los parámetros del sistema. 
+                      Los precios de combustibles y la gestión de surtidores se realizan desde sus páginas dedicadas.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={handleGuardarConfiguracion}
+                  disabled={loading}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'Guardando...' : 'Guardar Configuración'}
+                </button>
               </div>
             </div>
           </div>
@@ -2213,40 +2328,25 @@ function ConfiguracionSistema() {
 
 // Componente principal del dashboard administrativo
 function AdminDashboard() {
-  const [activeSection, setActiveSection] = useState('dashboard')
-  const { usuarioActual, logout, surtidores } = useSimpleSupabase()
+  const { usuarioActual, logout, surtidores, cargarVentas } = useGasStation()
 
+  // Mostrar contenido según el rol del usuario
   const renderContent = () => {
-    switch (activeSection) {
-      case 'dashboard':
-        return <DashboardOverview surtidores={surtidores} />
-      case 'usuarios':
-        return <GestionUsuarios />
-      case 'surtidores':
-        return <GestionSurtidores surtidores={surtidores} />
-      case 'ventas':
-        return <ControlVentas />
-      case 'reportes':
-        return <Reportes />
-      case 'configuracion':
-        return <ConfiguracionSistema />
-      default:
-        return <DashboardOverview surtidores={surtidores} />
+    // Si es bombero, mostrar interfaz de ventas
+    if (usuarioActual?.role === 'bombero') {
+      return <VentaCombustibleSimple onVentaRealizada={cargarVentas} />
     }
+    
+    // Para administradores, mostrar dashboard gerencial
+    return <DashboardOverview surtidores={surtidores} />
   }
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      <AdminSidebar 
-        activeSection={activeSection} 
-        setActiveSection={setActiveSection}
-        onLogout={logout}
-      />
+    <div className="min-h-screen bg-gray-100">
+      <AdminHeader onLogout={logout} />
       
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-8">
-          {renderContent()}
-        </div>
+      <div className="p-6">
+        {renderContent()}
       </div>
     </div>
   )

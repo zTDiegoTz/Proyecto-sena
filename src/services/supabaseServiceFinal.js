@@ -580,6 +580,172 @@ export const surtidoresService = {
     } catch (error) {
       return handleSupabaseError(error)
     }
+  },
+
+  // Editar surtidor
+  async editar(id, datosActualizados) {
+    try {
+      console.log('Editando surtidor:', id, datosActualizados)
+      
+      const { data, error } = await supabase
+        .from('surtidores')
+        .update({
+          nombre: datosActualizados.nombre,
+          estado: datosActualizados.estado,
+          ubicacion: datosActualizados.ubicacion,
+          fecha_actualizacion: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single()
+      
+      if (error) {
+        console.error('Error al editar surtidor:', error)
+        throw error
+      }
+      
+      console.log('Surtidor editado exitosamente:', data)
+      return { success: true, data }
+    } catch (error) {
+      console.error('Error completo al editar surtidor:', error)
+      return handleSupabaseError(error)
+    }
+  },
+
+  // Eliminar surtidor
+  async eliminar(id) {
+    try {
+      console.log('Eliminando surtidor:', id)
+      
+      // Verificar si hay ventas asociadas
+      const { data: ventas, error: ventasError } = await supabase
+        .from('ventas')
+        .select('id')
+        .eq('surtidor_id', id)
+        .limit(1)
+      
+      if (ventasError) {
+        console.error('Error verificando ventas:', ventasError)
+        throw ventasError
+      }
+      
+      if (ventas && ventas.length > 0) {
+        return { 
+          success: false, 
+          message: 'No se puede eliminar el surtidor porque tiene ventas asociadas' 
+        }
+      }
+      
+      // Eliminar combustibles del surtidor primero
+      const { error: combustiblesError } = await supabase
+        .from('combustibles_surtidor')
+        .delete()
+        .eq('surtidor_id', id)
+      
+      if (combustiblesError) {
+        console.error('Error eliminando combustibles:', combustiblesError)
+        throw combustiblesError
+      }
+      
+      // Eliminar el surtidor
+      const { data, error } = await supabase
+        .from('surtidores')
+        .delete()
+        .eq('id', id)
+        .select()
+        .single()
+      
+      if (error) {
+        console.error('Error al eliminar surtidor:', error)
+        throw error
+      }
+      
+      console.log('Surtidor eliminado exitosamente:', data)
+      return { success: true, data }
+    } catch (error) {
+      console.error('Error completo al eliminar surtidor:', error)
+      return handleSupabaseError(error)
+    }
+  },
+
+  // Configurar combustibles para un surtidor
+  async configurarCombustibles(surtidorId, combustibles) {
+    try {
+      console.log('Configurando combustibles para surtidor:', surtidorId, combustibles)
+      
+      // Eliminar combustibles existentes
+      const { error: deleteError } = await supabase
+        .from('combustibles_surtidor')
+        .delete()
+        .eq('surtidor_id', surtidorId)
+      
+      if (deleteError) {
+        console.error('Error eliminando combustibles existentes:', deleteError)
+        throw deleteError
+      }
+      
+      // Insertar nuevos combustibles
+      const combustiblesData = Object.entries(combustibles).map(([tipo, datos]) => ({
+        surtidor_id: surtidorId,
+        tipo_combustible: tipo,
+        precio: parseFloat(datos.precio),
+        stock: parseFloat(datos.stock),
+        capacidad_maxima: parseFloat(datos.capacidad_maxima),
+        vendido: parseFloat(datos.vendido || 0),
+        fecha_actualizacion: new Date().toISOString()
+      }))
+      
+      const { data, error } = await supabase
+        .from('combustibles_surtidor')
+        .insert(combustiblesData)
+        .select()
+      
+      if (error) {
+        console.error('Error insertando combustibles:', error)
+        throw error
+      }
+      
+      console.log('Combustibles configurados exitosamente:', data)
+      return { success: true, data }
+    } catch (error) {
+      console.error('Error completo al configurar combustibles:', error)
+      return handleSupabaseError(error)
+    }
+  },
+
+  // Obtener configuración de precios globales
+  async obtenerPreciosGlobales() {
+    try {
+      const { data, error } = await supabase
+        .from('configuracion')
+        .select('valor')
+        .eq('clave', 'precios_base')
+        .single()
+      
+      if (error) {
+        // Si no encuentra la configuración, devolver precios por defecto
+        if (error.code === 'PGRST116') {
+          const precios = {
+            extra: 10000,
+            corriente: 9500,
+            acpm: 8500
+          }
+          return { success: true, data: precios }
+        }
+        console.error('Error obteniendo precios globales:', error)
+        return { success: false, message: 'Error obteniendo precios globales' }
+      }
+      
+      const precios = data ? JSON.parse(data.valor) : {
+        extra: 10000,
+        corriente: 9500,
+        acpm: 8500
+      }
+      
+      return { success: true, data: precios }
+    } catch (error) {
+      return handleSupabaseError(error)
+    }
   }
 }
 
@@ -593,7 +759,7 @@ export const turnosService = {
       const { data, error } = await supabase
         .from('turnos')
         .select('*')
-        .order('hora_entrada', { ascending: false })
+        .order('fecha_inicio', { ascending: false })
       
       if (error) throw error
       return { success: true, data }
@@ -610,8 +776,8 @@ export const turnosService = {
         .insert([{
           bombero_id: bomberoId,
           bombero_nombre: bomberoNombre,
-          hora_entrada: new Date().toISOString(),
-          activo: true
+          fecha_inicio: new Date().toISOString(),
+          estado: 'activo'
         }])
         .select()
         .single()
@@ -629,8 +795,8 @@ export const turnosService = {
       const { data, error } = await supabase
         .from('turnos')
         .update({
-          hora_salida: new Date().toISOString(),
-          activo: false
+          fecha_fin: new Date().toISOString(),
+          estado: 'finalizado'
         })
         .eq('id', turnoId)
         .select()
@@ -650,7 +816,7 @@ export const turnosService = {
         .from('turnos')
         .select('*')
         .eq('bombero_id', bomberoId)
-        .eq('activo', true)
+        .eq('estado', 'activo')
         .single()
       
       if (error && error.code !== 'PGRST116') throw error // PGRST116 = no rows returned
@@ -673,7 +839,13 @@ export const configuracionService = {
         .eq('clave', clave)
         .single()
       
-      if (error) throw error
+      if (error) {
+        // Si no encuentra la configuración, devolver null en lugar de error
+        if (error.code === 'PGRST116') {
+          return { success: true, data: null }
+        }
+        throw error
+      }
       return { success: true, data: data.valor }
     } catch (error) {
       return handleSupabaseError(error)
@@ -689,7 +861,7 @@ export const configuracionService = {
           clave,
           valor,
           fecha_actualizacion: new Date().toISOString()
-        })
+        }, { onConflict: 'clave' })
         .select()
         .single()
       

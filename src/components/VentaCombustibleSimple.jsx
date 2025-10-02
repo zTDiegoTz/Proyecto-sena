@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { useSimpleSupabase } from '../context/SimpleSupabaseContextTemp'
+import { useSupabaseGasStation as useGasStation } from '../context/SupabaseGasStationContext'
 
 function VentaCombustibleSimple({ onVentaRealizada }) {
-  const { usuarioActual, surtidores, realizarVenta, obtenerSurtidores } = useSimpleSupabase()
+  const { usuarioActual, surtidores, finalizarVenta, cargarSurtidores } = useGasStation()
   
   // Estados del formulario de venta
   const [ventaData, setVentaData] = useState({
@@ -24,7 +24,7 @@ function VentaCombustibleSimple({ onVentaRealizada }) {
 
   // Cargar surtidores al montar el componente
   useEffect(() => {
-    obtenerSurtidores()
+    cargarSurtidores()
   }, [])
 
   // Actualizar combustibles disponibles cuando se selecciona un surtidor
@@ -145,7 +145,14 @@ function VentaCombustibleSimple({ onVentaRealizada }) {
         fecha_venta: new Date().toISOString()
       }
 
-      const resultado = await realizarVenta(ventaCompleta)
+      // Usar finalizarVenta del contexto actual
+      const resultado = await finalizarVenta(
+        ventaData.surtidor_id,
+        ventaData.tipo_combustible,
+        galonesCalculados,
+        parseFloat(ventaData.precio_por_galon),
+        totalCalculado
+      )
       
       if (resultado.success) {
         setMensaje('¡Venta registrada exitosamente!')
@@ -166,7 +173,7 @@ function VentaCombustibleSimple({ onVentaRealizada }) {
         
         // Recargar surtidores para actualizar datos
         setTimeout(() => {
-          obtenerSurtidores()
+          cargarSurtidores()
           setMensaje('')
           // Notificar al componente padre para actualizar las ventas del día
           if (onVentaRealizada) {

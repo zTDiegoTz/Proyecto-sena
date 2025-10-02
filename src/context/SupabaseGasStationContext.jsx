@@ -6,24 +6,53 @@ import {
   turnosService, 
   configuracionService 
 } from '../services/supabaseServiceFinal'
+import { ventasServiceClean } from '../services/ventasServiceClean'
 
-// Estado inicial simplificado (los datos se cargan desde Supabase)
-const initialState = {
-  surtidores: [],
-  ventas: [],
-  configuracion: {
-    precios: {
-      extra: 12500,
-      corriente: 11500,
-      acpm: 10500
+// Función para obtener el estado inicial desde localStorage
+const getInitialState = () => {
+  try {
+    const savedUser = localStorage.getItem('gasStation_user')
+    const usuarioActual = savedUser ? JSON.parse(savedUser) : null
+    
+    return {
+      surtidores: [],
+      ventas: [],
+      configuracion: {
+        precios: {
+          extra: 12500,
+          corriente: 11500,
+          acpm: 10500
+        }
+      },
+      usuarios: [],
+      turnos: [],
+      usuarioActual,
+      loading: false,
+      error: null
     }
-  },
-  usuarios: [],
-  turnos: [],
-  usuarioActual: null,
-  loading: false,
-  error: null
+  } catch (error) {
+    console.error('Error al cargar estado desde localStorage:', error)
+    return {
+      surtidores: [],
+      ventas: [],
+      configuracion: {
+        precios: {
+          extra: 12500,
+          corriente: 11500,
+          acpm: 10500
+        }
+      },
+      usuarios: [],
+      turnos: [],
+      usuarioActual: null,
+      loading: false,
+      error: null
+    }
+  }
 }
+
+// Estado inicial
+const initialState = getInitialState()
 
 // Acciones
 const ACTIONS = {
@@ -44,6 +73,12 @@ const ACTIONS = {
   ACTUALIZAR_PRECIOS: 'ACTUALIZAR_PRECIOS',
   ACTUALIZAR_STOCK: 'ACTUALIZAR_STOCK',
   CAMBIAR_ESTADO_SURTIDOR: 'CAMBIAR_ESTADO_SURTIDOR',
+  
+  // Gestión de surtidores
+  CREAR_SURTIDOR: 'CREAR_SURTIDOR',
+  EDITAR_SURTIDOR: 'EDITAR_SURTIDOR',
+  ELIMINAR_SURTIDOR: 'ELIMINAR_SURTIDOR',
+  CONFIGURAR_COMBUSTIBLES: 'CONFIGURAR_COMBUSTIBLES',
   
   // Usuario
   LOGIN: 'LOGIN',
@@ -79,9 +114,21 @@ function gasStationReducer(state, action) {
       return { ...state, configuracion: action.payload }
     
     case ACTIONS.LOGIN:
+      // Guardar usuario en localStorage
+      try {
+        localStorage.setItem('gasStation_user', JSON.stringify(action.payload))
+      } catch (error) {
+        console.error('Error al guardar usuario en localStorage:', error)
+      }
       return { ...state, usuarioActual: action.payload }
     
     case ACTIONS.LOGOUT:
+      // Limpiar localStorage
+      try {
+        localStorage.removeItem('gasStation_user')
+      } catch (error) {
+        console.error('Error al limpiar localStorage:', error)
+      }
       return { ...state, usuarioActual: null }
     
     // Actualizaciones optimistas (se reflejan inmediatamente en la UI)
@@ -107,7 +154,7 @@ function gasStationReducer(state, action) {
         valor_total: parseFloat(total),
         fecha_hora: new Date().toISOString(),
         bombero_id: state.usuarioActual?.id,
-        bombero_nombre: state.usuarioActual?.nombre
+        bombero_nombre: state.usuarioActual?.name
       }
 
       return {
@@ -171,6 +218,39 @@ function gasStationReducer(state, action) {
                   [comb]: { ...surtidor.combustibles[comb], stock: parseFloat(nuevoStock) }
                 }
               }
+            : surtidor
+        )
+      }
+    
+    case ACTIONS.CREAR_SURTIDOR:
+      return {
+        ...state,
+        surtidores: [...state.surtidores, action.payload]
+      }
+    
+    case ACTIONS.EDITAR_SURTIDOR:
+      return {
+        ...state,
+        surtidores: state.surtidores.map(surtidor =>
+          surtidor.id === action.payload.id
+            ? { ...surtidor, ...action.payload }
+            : surtidor
+        )
+      }
+    
+    case ACTIONS.ELIMINAR_SURTIDOR:
+      return {
+        ...state,
+        surtidores: state.surtidores.filter(surtidor => surtidor.id !== action.payload)
+      }
+    
+    case ACTIONS.CONFIGURAR_COMBUSTIBLES:
+      const { surtidorId: configSurtId, combustibles: configComb } = action.payload
+      return {
+        ...state,
+        surtidores: state.surtidores.map(surtidor =>
+          surtidor.id === configSurtId
+            ? { ...surtidor, combustibles: configComb }
             : surtidor
         )
       }
@@ -248,9 +328,45 @@ export function SupabaseGasStationProvider({ children }) {
   }
 
   const cargarConfiguracion = async () => {
-    const resultado = await configuracionService.obtener('precios_base')
-    if (resultado.success) {
-      dispatch({ type: ACTIONS.SET_CONFIGURACION, payload: { precios: resultado.data } })
+    try {
+      // Intentar cargar desde configuracion_combustibles (nueva estructura)
+      const { createClient } = await import('@supabase/supabase-js')
+      const supabase = createClient(
+        'https://adbzfiepkxtyqudwfysk.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFkYnpmaWVwa3h0eXF1ZHdmeXNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MzI4NTMsImV4cCI6MjA3MzAwODg1M30.p28PzncJkprjEluCMsFsaqio0zTsrRrzM2whZ52_rtI'
+      )
+      
+      const { data: combustibles, error } = await supabase
+        .from('configuracion_combustibles')
+        .select('tipo_combustible, precio_por_litro')
+        .eq('activo', true)
+      
+      if (!error && combustibles && combustibles.length > 0) {
+        // Convertir a formato esperado por el frontend
+        const precios = combustibles.reduce((acc, combustible) => {
+          acc[combustible.tipo_combustible] = combustible.precio_por_litro
+          return acc
+        }, {})
+        
+        dispatch({ type: ACTIONS.SET_CONFIGURACION, payload: { precios } })
+      } else {
+        // Fallback: usar valores por defecto
+        const preciosDefecto = {
+          extra: 12500,
+          corriente: 11500,
+          acpm: 10500
+        }
+        dispatch({ type: ACTIONS.SET_CONFIGURACION, payload: { precios: preciosDefecto } })
+      }
+    } catch (error) {
+      console.error('Error cargando configuración:', error)
+      // Usar valores por defecto en caso de error
+      const preciosDefecto = {
+        extra: 12500,
+        corriente: 11500,
+        acpm: 10500
+      }
+      dispatch({ type: ACTIONS.SET_CONFIGURACION, payload: { precios: preciosDefecto } })
     }
   }
 
@@ -277,6 +393,30 @@ export function SupabaseGasStationProvider({ children }) {
     cargarDatosIniciales()
   }, [])
 
+  // Verificar sesión persistente al cargar
+  useEffect(() => {
+    const verificarSesion = async () => {
+      if (state.usuarioActual) {
+        // Si hay un usuario guardado, verificar que sigue siendo válido
+        try {
+          const resultado = await usuariosService.obtenerTodos()
+          if (resultado.success) {
+            const usuarioValido = resultado.data.find(u => u.id === state.usuarioActual.id)
+            if (!usuarioValido || !usuarioValido.activo) {
+              // Usuario no válido o inactivo, cerrar sesión
+              dispatch({ type: ACTIONS.LOGOUT })
+            }
+          }
+        } catch (error) {
+          console.error('Error verificando sesión:', error)
+          // En caso de error de conexión, mantener la sesión local
+        }
+      }
+    }
+
+    verificarSesion()
+  }, [])
+
   // Funciones para surtidores
   const iniciarVenta = async (surtidorId) => {
     // Actualización optimista
@@ -292,54 +432,91 @@ export function SupabaseGasStationProvider({ children }) {
   }
 
   const finalizarVenta = async (surtidorId, combustible, cantidad, precioUnitario, total) => {
-    // Actualización optimista
-    dispatch({
-      type: ACTIONS.FINALIZAR_VENTA,
-      payload: { surtidorId, combustible, cantidad, precioUnitario, total }
-    })
+    try {
+      // Actualización optimista
+      dispatch({
+        type: ACTIONS.FINALIZAR_VENTA,
+        payload: { surtidorId, combustible, cantidad, precioUnitario, total }
+      })
 
-    // Preparar datos para Supabase
-    const ventaData = {
-      surtidorId,
-      surtidorNombre: state.surtidores.find(s => s.id === surtidorId)?.nombre,
-      tipoCombustible: combustible,
-      cantidad: parseFloat(cantidad),
-      precioUnitario: parseFloat(precioUnitario),
-      valorTotal: parseFloat(total),
-      bomberoId: state.usuarioActual?.id,
-      bomberoNombre: state.usuarioActual?.nombre,
-      turnoId: state.turnos.find(t => t.bombero_id === state.usuarioActual?.id && t.activo)?.id
-    }
+      // Preparar datos para Supabase (formato correcto)
+      const cantidadLitros = parseFloat(cantidad) * 3.78541; // Convertir galones a litros
+      const ventaData = {
+        surtidor_id: surtidorId,
+        surtidor_nombre: state.surtidores.find(s => s.id === surtidorId)?.nombre,
+        tipo_combustible: combustible,
+        cantidad_galones: parseFloat(cantidad),
+        cantidad: cantidadLitros,
+        precio_por_galon: parseFloat(precioUnitario),
+        valor_total: parseFloat(total),
+        bombero_id: state.usuarioActual?.id,
+        bombero_nombre: state.usuarioActual?.name || state.usuarioActual?.nombre,
+        turno_id: state.turnos.find(t => t.bombero_id === state.usuarioActual?.id && t.estado === 'activo')?.id,
+        precio_unitario: cantidadLitros > 0 ? parseFloat((parseFloat(total) / cantidadLitros).toFixed(2)) : 0
+      }
 
-    // Sincronizar con Supabase
-    const resultado = await ventasService.crear(ventaData)
-    if (resultado.success) {
-      // Actualizar estado del surtidor a disponible
-      await surtidoresService.actualizarEstado(surtidorId, 'disponible')
-      // Recargar datos para estar sincronizado
-      cargarSurtidores()
-      cargarVentas()
-    } else {
-      dispatch({ type: ACTIONS.SET_ERROR, payload: resultado.message })
+      // Sincronizar con Supabase usando el servicio correcto
+      const resultado = await ventasServiceClean.crear(ventaData)
+      if (resultado.success) {
+        // Actualizar estado del surtidor a disponible
+        await surtidoresService.actualizarEstado(surtidorId, 'disponible')
+        // Recargar datos para estar sincronizado
+        cargarSurtidores()
+        cargarVentas()
+        return { success: true, data: resultado.data }
+      } else {
+        dispatch({ type: ACTIONS.SET_ERROR, payload: resultado.message })
+        // Recargar datos para revertir cambios optimistas
+        cargarSurtidores()
+        cargarVentas()
+        return { success: false, error: resultado.message }
+      }
+    } catch (error) {
+      console.error('Error en finalizarVenta:', error)
+      dispatch({ type: ACTIONS.SET_ERROR, payload: error.message })
       // Recargar datos para revertir cambios optimistas
       cargarSurtidores()
       cargarVentas()
+      return { success: false, error: error.message }
     }
   }
 
   const actualizarPrecios = async (precios) => {
-    // Actualización optimista
-    dispatch({ type: ACTIONS.ACTUALIZAR_PRECIOS, payload: precios })
-    
-    // Sincronizar con Supabase
-    const resultado = await surtidoresService.actualizarPrecios(precios)
-    if (resultado.success) {
-      // Actualizar configuración
-      await configuracionService.actualizar('precios_base', precios)
+    try {
+      // Actualización optimista
+      dispatch({ type: ACTIONS.ACTUALIZAR_PRECIOS, payload: precios })
+      
+      // Actualizar en configuracion_combustibles (nueva estructura)
+      const { createClient } = await import('@supabase/supabase-js')
+      const supabase = createClient(
+        'https://adbzfiepkxtyqudwfysk.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFkYnpmaWVwa3h0eXF1ZHdmeXNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MzI4NTMsImV4cCI6MjA3MzAwODg1M30.p28PzncJkprjEluCMsFsaqio0zTsrRrzM2whZ52_rtI'
+      )
+
+      // Actualizar cada precio en configuracion_combustibles
+      for (const [tipo, precio] of Object.entries(precios)) {
+        const { error } = await supabase
+          .from('configuracion_combustibles')
+          .update({ 
+            precio_por_litro: precio,
+            fecha_actualizacion: new Date().toISOString()
+          })
+          .eq('tipo_combustible', tipo)
+        
+        if (error) {
+          throw new Error(`Error actualizando ${tipo}: ${error.message}`)
+        }
+      }
+
+      // También actualizar en combustibles_surtidor para mantener compatibilidad
+      await surtidoresService.actualizarPrecios(precios)
+
+      // Recargar datos
       cargarConfiguracion()
       cargarSurtidores()
-    } else {
-      dispatch({ type: ACTIONS.SET_ERROR, payload: resultado.message })
+    } catch (error) {
+      console.error('Error actualizando precios:', error)
+      dispatch({ type: ACTIONS.SET_ERROR, payload: error.message })
       cargarSurtidores()
       cargarConfiguracion()
     }
@@ -377,12 +554,12 @@ export function SupabaseGasStationProvider({ children }) {
       dispatch({ type: ACTIONS.LOGIN, payload: resultado.data })
       
       // Si es bombero, iniciar turno automáticamente
-      if (resultado.data.rol === 'bombero') {
+      if (resultado.data.role === 'bombero') {
         const turnoActivo = await turnosService.obtenerActivo(resultado.data.id)
         
         // Solo iniciar turno si no tiene uno activo
         if (!turnoActivo.data) {
-          await iniciarTurno(resultado.data.id, resultado.data.nombre)
+          await iniciarTurno(resultado.data.id, resultado.data.name)
         }
       }
       
@@ -394,7 +571,7 @@ export function SupabaseGasStationProvider({ children }) {
 
   const logout = async () => {
     // Si es bombero, finalizar turno automáticamente
-    if (state.usuarioActual && state.usuarioActual.rol === 'bombero') {
+    if (state.usuarioActual && state.usuarioActual.role === 'bombero') {
       const turnoActivo = state.turnos.find(turno => 
         turno.bombero_id === state.usuarioActual.id && turno.activo
       )
@@ -487,6 +664,118 @@ export function SupabaseGasStationProvider({ children }) {
     }
   }
 
+  // Funciones para gestión completa de surtidores
+  const crearSurtidor = async (surtidorData) => {
+    try {
+      // Obtener precios globales para configurar combustibles
+      const preciosResultado = await surtidoresService.obtenerPreciosGlobales()
+      const precios = preciosResultado.success ? preciosResultado.data : {
+        extra: 10000,
+        corriente: 9500,
+        acpm: 8500
+      }
+
+      // Crear el surtidor
+      const resultado = await surtidoresService.crear(surtidorData)
+      if (!resultado.success) {
+        dispatch({ type: ACTIONS.SET_ERROR, payload: resultado.message })
+        return resultado
+      }
+
+      // Configurar combustibles con precios globales
+      const combustibles = {
+        extra: { precio: precios.extra, stock: 1000, capacidad_maxima: 2000, vendido: 0 },
+        corriente: { precio: precios.corriente, stock: 1000, capacidad_maxima: 2000, vendido: 0 },
+        acpm: { precio: precios.acpm, stock: 1000, capacidad_maxima: 2000, vendido: 0 }
+      }
+
+      const configResultado = await surtidoresService.configurarCombustibles(resultado.data.id, combustibles)
+      if (!configResultado.success) {
+        dispatch({ type: ACTIONS.SET_ERROR, payload: configResultado.message })
+        return configResultado
+      }
+
+      // Actualizar estado local
+      dispatch({ 
+        type: ACTIONS.CREAR_SURTIDOR, 
+        payload: {
+          ...resultado.data,
+          combustibles
+        }
+      })
+
+      // Recargar datos para sincronizar
+      cargarSurtidores()
+      return { success: true, data: resultado.data }
+    } catch (error) {
+      dispatch({ type: ACTIONS.SET_ERROR, payload: error.message })
+      return { success: false, message: error.message }
+    }
+  }
+
+  const editarSurtidor = async (id, datosActualizados) => {
+    try {
+      const resultado = await surtidoresService.editar(id, datosActualizados)
+      if (!resultado.success) {
+        dispatch({ type: ACTIONS.SET_ERROR, payload: resultado.message })
+        return resultado
+      }
+
+      // Actualización optimista
+      dispatch({ type: ACTIONS.EDITAR_SURTIDOR, payload: { id, ...datosActualizados } })
+      
+      // Recargar datos para sincronizar
+      cargarSurtidores()
+      return resultado
+    } catch (error) {
+      dispatch({ type: ACTIONS.SET_ERROR, payload: error.message })
+      return { success: false, message: error.message }
+    }
+  }
+
+  const eliminarSurtidor = async (id) => {
+    try {
+      const resultado = await surtidoresService.eliminar(id)
+      if (!resultado.success) {
+        dispatch({ type: ACTIONS.SET_ERROR, payload: resultado.message })
+        return resultado
+      }
+
+      // Actualización optimista
+      dispatch({ type: ACTIONS.ELIMINAR_SURTIDOR, payload: id })
+      
+      // Recargar datos para sincronizar
+      cargarSurtidores()
+      return resultado
+    } catch (error) {
+      dispatch({ type: ACTIONS.SET_ERROR, payload: error.message })
+      return { success: false, message: error.message }
+    }
+  }
+
+  const configurarCombustiblesSurtidor = async (surtidorId, combustibles) => {
+    try {
+      const resultado = await surtidoresService.configurarCombustibles(surtidorId, combustibles)
+      if (!resultado.success) {
+        dispatch({ type: ACTIONS.SET_ERROR, payload: resultado.message })
+        return resultado
+      }
+
+      // Actualización optimista
+      dispatch({ 
+        type: ACTIONS.CONFIGURAR_COMBUSTIBLES, 
+        payload: { surtidorId, combustibles }
+      })
+      
+      // Recargar datos para sincronizar
+      cargarSurtidores()
+      return resultado
+    } catch (error) {
+      dispatch({ type: ACTIONS.SET_ERROR, payload: error.message })
+      return { success: false, message: error.message }
+    }
+  }
+
   // Función de verificación de permisos (igual que antes)
   const tienePermiso = (permiso) => {
     if (!state.usuarioActual) return false
@@ -497,7 +786,7 @@ export function SupabaseGasStationProvider({ children }) {
       bombero: ['registrar_ventas', 'gestionar_turno_propio']
     }
     
-    const permisosUsuario = permisos[state.usuarioActual.rol] || []
+    const permisosUsuario = permisos[state.usuarioActual.role] || []
     return permisosUsuario.includes('todos') || permisosUsuario.includes(permiso)
   }
 
@@ -523,6 +812,10 @@ export function SupabaseGasStationProvider({ children }) {
     actualizarPrecios,
     actualizarStock,
     cambiarEstadoSurtidor,
+    crearSurtidor,
+    editarSurtidor,
+    eliminarSurtidor,
+    configurarCombustiblesSurtidor,
     
     // Funciones para usuarios
     login,

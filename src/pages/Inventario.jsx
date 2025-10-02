@@ -6,9 +6,9 @@ const Inventario = () => {
   const [editingPrecios, setEditingPrecios] = useState(false)
   const [editingStock, setEditingStock] = useState(null)
   const [nuevosPrecios, setNuevosPrecios] = useState({
-    extra: configuracion.precios.extra,
-    corriente: configuracion.precios.corriente,
-    acpm: configuracion.precios.acpm
+    extra: configuracion.precios?.extra || '',
+    corriente: configuracion.precios?.corriente || '',
+    acpm: configuracion.precios?.acpm || ''
   })
   const [nuevoStock, setNuevoStock] = useState('')
 
@@ -54,15 +54,34 @@ const Inventario = () => {
   })
 
   const guardarPrecios = () => {
-    actualizarPrecios(nuevosPrecios)
+    // Validar que todos los precios sean válidos
+    const preciosValidados = {}
+    
+    // Validar cada precio
+    const precios = ['extra', 'corriente', 'acpm']
+    for (const tipo of precios) {
+      const valor = nuevosPrecios[tipo]
+      if (valor === '' || valor == null) {
+        alert(`Por favor ingrese un precio válido para ${tipo}`)
+        return
+      }
+      const numero = parseFloat(valor)
+      if (isNaN(numero) || numero <= 0) {
+        alert(`El precio de ${tipo} debe ser un número mayor a 0`)
+        return
+      }
+      preciosValidados[tipo] = numero
+    }
+    
+    actualizarPrecios(preciosValidados)
     setEditingPrecios(false)
   }
 
   const cancelarEdicionPrecios = () => {
     setNuevosPrecios({
-      extra: configuracion.precios.extra,
-      corriente: configuracion.precios.corriente,
-      acpm: configuracion.precios.acpm
+      extra: configuracion.precios?.extra || '',
+      corriente: configuracion.precios?.corriente || '',
+      acpm: configuracion.precios?.acpm || ''
     })
     setEditingPrecios(false)
   }
@@ -142,7 +161,7 @@ const Inventario = () => {
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Precio:</span>
-              <span className="font-medium">{formatCurrency(configuracion.precios.extra)}</span>
+              <span className="font-medium">{formatCurrency(configuracion.precios?.extra || 0)}</span>
             </div>
           </div>
         </div>
@@ -162,7 +181,7 @@ const Inventario = () => {
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Precio:</span>
-              <span className="font-medium">{formatCurrency(configuracion.precios.corriente)}</span>
+              <span className="font-medium">{formatCurrency(configuracion.precios?.corriente || 0)}</span>
             </div>
           </div>
         </div>
@@ -182,7 +201,7 @@ const Inventario = () => {
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Precio:</span>
-              <span className="font-medium">{formatCurrency(configuracion.precios.acpm)}</span>
+              <span className="font-medium">{formatCurrency(configuracion.precios?.acpm || 0)}</span>
             </div>
           </div>
         </div>
@@ -226,7 +245,10 @@ const Inventario = () => {
               min="0"
               className="input-field"
               value={nuevosPrecios.extra}
-              onChange={(e) => setNuevosPrecios({...nuevosPrecios, extra: parseFloat(e.target.value) || 0})}
+              onChange={(e) => {
+                const value = e.target.value
+                setNuevosPrecios({...nuevosPrecios, extra: value === '' ? '' : value})
+              }}
               disabled={!editingPrecios}
             />
           </div>
@@ -238,7 +260,10 @@ const Inventario = () => {
               min="0"
               className="input-field"
               value={nuevosPrecios.corriente}
-              onChange={(e) => setNuevosPrecios({...nuevosPrecios, corriente: parseFloat(e.target.value) || 0})}
+              onChange={(e) => {
+                const value = e.target.value
+                setNuevosPrecios({...nuevosPrecios, corriente: value === '' ? '' : value})
+              }}
               disabled={!editingPrecios}
             />
           </div>
@@ -250,7 +275,10 @@ const Inventario = () => {
               min="0"
               className="input-field"
               value={nuevosPrecios.acpm}
-              onChange={(e) => setNuevosPrecios({...nuevosPrecios, acpm: parseFloat(e.target.value) || 0})}
+              onChange={(e) => {
+                const value = e.target.value
+                setNuevosPrecios({...nuevosPrecios, acpm: value === '' ? '' : value})
+              }}
               disabled={!editingPrecios}
             />
           </div>

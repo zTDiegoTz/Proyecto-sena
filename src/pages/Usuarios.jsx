@@ -46,9 +46,9 @@ function Usuarios() {
     setFormData({
       username: usuario.username,
       password: '',
-      nombre: usuario.nombre,
+      nombre: usuario.name,
       email: usuario.email,
-      rol: usuario.rol
+      rol: usuario.role
     })
     setShowModal(true)
   }
@@ -136,7 +136,7 @@ function Usuarios() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
-                      {usuario.nombre}
+                      {usuario.name}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -145,8 +145,8 @@ function Usuarios() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getRolBadge(usuario.rol)}`}>
-                      {getRolLabel(usuario.rol)}
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getRolBadge(usuario.role)}`}>
+                      {getRolLabel(usuario.role)}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -223,8 +223,8 @@ function Usuarios() {
                     type="text"
                     required
                     className="input-field"
-                    value={formData.nombre}
-                    onChange={(e) => setFormData({...formData, nombre: e.target.value})}
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
                   />
                 </div>
 
@@ -247,8 +247,8 @@ function Usuarios() {
                   </label>
                   <select
                     className="input-field"
-                    value={formData.rol}
-                    onChange={(e) => setFormData({...formData, rol: e.target.value})}
+                    value={formData.role}
+                    onChange={(e) => setFormData({...formData, role: e.target.value})}
                   >
                     <option value="bombero">Bombero</option>
                     <option value="administrador">Administrador</option>
